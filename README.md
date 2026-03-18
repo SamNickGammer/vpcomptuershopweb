@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# V&P Computer Shop — Web Platform
 
-## Getting Started
+E-commerce platform for V&P Computer Shop, Patna.
+Sells refurbished laptops, new laptops, motherboards, ICs, chips, and hardware components.
 
-First, run the development server:
+## Stack
+
+| Layer     | Technology              |
+| --------- | ----------------------- |
+| Framework | Next.js 15 (App Router) |
+| Language  | TypeScript (strict)     |
+| ORM       | Drizzle ORM             |
+| Database  | Supabase (PostgreSQL)   |
+| Storage   | Supabase Storage        |
+| Auth      | Custom JWT (jose)       |
+| Styling   | Tailwind CSS v4         |
+
+## Quick Start
 
 ```bash
+npm install
+cp .env.example .env.local   # fill in your values
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Database Commands
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run db:generate   # generate migration after schema change
+npm run db:migrate    # apply migrations to DB
+npm run db:push       # push schema directly (dev only)
+npm run db:studio     # open visual DB browser
+npm run db:seed       # create first admin user
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Key Decisions
 
-## Learn More
+- **Drizzle ORM** chosen over TypeORM — schema-first, type-safe, lightweight.
+  Switching DB = change one line in `drizzle.config.ts`.
+- **Custom JWT auth** for admin (not Supabase Auth) — full control over sessions.
+- **Prices in paise** — ₹1 = 100 paise. All prices stored as integers.
+- **Internal tracking codes** format: `VP-XXXXXX` (auto-generated).
+- **External tracking** — stores courier AWB number + provider name (India Post, DTDC, etc.)
 
-To learn more about Next.js, take a look at the following resources:
+## Docs
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See `.claude/CLAUDE.md` for full architecture, schema reference, and coding conventions.
