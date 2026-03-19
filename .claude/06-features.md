@@ -105,8 +105,8 @@ FUTURE    — planned but not in current scope
 | Feature                          | Status  | Notes                                       |
 |----------------------------------|---------|---------------------------------------------|
 | Homepage                         | FUTURE  |                                             |
-| Product listing page             | FUTURE  | With filters (category, condition, price)   |
-| Product detail page              | FUTURE  |                                             |
+| Product listing page             | DONE    | Filters (category, condition, price), sort, pagination |
+| Product detail page              | DONE    | Variant selector, image gallery, specs, cart |
 | Shopping cart                    | FUTURE  |                                             |
 | Checkout flow                    | FUTURE  |                                             |
 | Order placement API              | FUTURE  |                                             |
@@ -178,4 +178,4 @@ Step 8 — Orders + Tracking
 
 ---
 
-Last updated: 2026-03-19 — Analytics page created with revenue charts, order status, payment methods, top products, inventory overview, category performance, and coupon usage.
+Last updated: 2026-03-19 — Storefront product listing page and product detail page with variant selector created.
