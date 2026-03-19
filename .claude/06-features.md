@@ -57,6 +57,7 @@ FUTURE    — planned but not in current scope
 |----------------------------------|---------|---------------------------------------------|
 | Admin layout (sidebar + header)  | PENDING | Shared across all admin pages               |
 | Admin dashboard page             | DONE    | Stats: orders today, revenue, low stock     |
+| Admin analytics page             | DONE    | Revenue charts, orders by status, top products, inventory, coupons |
 | Admin sidebar navigation         | PENDING | Links to all admin sections                 |
 
 ### Admin Panel — Products
@@ -177,4 +178,4 @@ Step 8 — Orders + Tracking
 
 ---
 
-Last updated: 2026-03-19 — Dashboard page and Categories page (list + add/edit/delete) created.
+Last updated: 2026-03-19 — Analytics page created with revenue charts, order status, payment methods, top products, inventory overview, category performance, and coupon usage.
