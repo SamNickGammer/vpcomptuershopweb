@@ -18,7 +18,7 @@ import { cn, formatPrice } from "@/lib/utils/helpers";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/hooks/useCart";
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -515,8 +515,6 @@ export default function ProductDetailPage({
   const isOutOfStock = selectedVariant ? !selectedVariant.inStock : true;
 
   return (
-    <>
-      <Toaster theme="dark" position="top-right" richColors />
       <div className="min-h-screen bg-background">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
           {/* Breadcrumb */}
@@ -723,6 +721,5 @@ export default function ProductDetailPage({
           </div>
         </div>
       </div>
-    </>
   );
 }

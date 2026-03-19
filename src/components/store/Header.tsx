@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -9,9 +9,13 @@ import {
   UserCircle,
   Menu,
   X,
+  LogOut,
+  User,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils/helpers";
 import { useCart } from "@/hooks/useCart";
+import { useAuth } from "@/hooks/useAuth";
 import CartSidebar from "./CartSidebar";
 
 const NAV_LINKS = [
@@ -25,6 +29,9 @@ export default function Header() {
   const pathname = usePathname();
   const [cartOpen, setCartOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   const {
     items,
     totalItems,
@@ -33,9 +40,32 @@ export default function Header() {
     removeItem,
   } = useCart();
 
+  const { user, loading, openAuthModal, logout } = useAuth();
+
   function isActive(href: string) {
     if (href === "/") return pathname === "/";
     return pathname.startsWith(href);
+  }
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
+        setUserDropdownOpen(false);
+      }
+    }
+    if (userDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [userDropdownOpen]);
+
+  function handleLogout() {
+    setUserDropdownOpen(false);
+    logout();
   }
 
   return (
@@ -86,14 +116,81 @@ export default function Header() {
               )}
             </button>
 
-            {/* User Icon */}
-            <Link
-              href="/login"
-              className="flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              aria-label="Account"
-            >
-              <UserCircle className="h-5 w-5" />
-            </Link>
+            {/* User Button / Dropdown */}
+            {!loading && (
+              <>
+                {user ? (
+                  <div className="relative" ref={dropdownRef}>
+                    <button
+                      onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                      className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                      aria-label="User menu"
+                    >
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-primary">
+                        <span className="text-xs font-bold">
+                          {user.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <span className="hidden text-foreground sm:inline max-w-[100px] truncate">
+                        {user.name.split(" ")[0]}
+                      </span>
+                      <ChevronDown
+                        className={cn(
+                          "hidden h-3.5 w-3.5 transition-transform sm:block",
+                          userDropdownOpen && "rotate-180"
+                        )}
+                      />
+                    </button>
+
+                    {/* Dropdown */}
+                    {userDropdownOpen && (
+                      <div className="absolute right-0 top-full mt-2 w-52 rounded-lg border border-border bg-background shadow-xl z-50">
+                        <div className="border-b border-border px-4 py-3">
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {user.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {user.email}
+                          </p>
+                        </div>
+                        <div className="p-1.5">
+                          <Link
+                            href="/account"
+                            onClick={() => setUserDropdownOpen(false)}
+                            className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                          >
+                            <User className="h-4 w-4" />
+                            My Account
+                          </Link>
+                          <button
+                            onClick={handleLogout}
+                            className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                          >
+                            <LogOut className="h-4 w-4" />
+                            Log Out
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => openAuthModal("login")}
+                    className="flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                    aria-label="Sign in"
+                  >
+                    <UserCircle className="h-5 w-5" />
+                  </button>
+                )}
+              </>
+            )}
+
+            {/* Loading placeholder */}
+            {loading && (
+              <div className="flex h-10 w-10 items-center justify-center">
+                <div className="h-5 w-5 rounded-full bg-muted animate-pulse" />
+              </div>
+            )}
 
             {/* Mobile Menu Toggle */}
             <button

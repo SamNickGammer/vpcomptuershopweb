@@ -3,8 +3,10 @@
 import { useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { X, ShoppingBag, Plus, Minus, Trash2 } from "lucide-react";
 import { formatPrice, cn } from "@/lib/utils/helpers";
+import { useAuth } from "@/hooks/useAuth";
 import type { CartItem } from "@/hooks/useCart";
 
 interface CartSidebarProps {
@@ -26,6 +28,19 @@ export default function CartSidebar({
   updateQuantity,
   removeItem,
 }: CartSidebarProps) {
+  const { user, openAuthModal } = useAuth();
+  const router = useRouter();
+
+  function handleCheckout() {
+    if (!user) {
+      onClose();
+      openAuthModal("login");
+      return;
+    }
+    onClose();
+    router.push("/checkout");
+  }
+
   // Lock body scroll when open
   useEffect(() => {
     if (isOpen) {
@@ -205,13 +220,12 @@ export default function CartSidebar({
                   {formatPrice(totalPrice)}
                 </span>
               </div>
-              <Link
-                href="/checkout"
-                onClick={onClose}
+              <button
+                onClick={handleCheckout}
                 className="flex w-full items-center justify-center rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
               >
-                Proceed to Checkout
-              </Link>
+                {user ? "Proceed to Checkout" : "Sign In to Checkout"}
+              </button>
               <button
                 onClick={onClose}
                 className="mt-2 flex w-full items-center justify-center py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"

@@ -110,3 +110,68 @@ button, a, input, select, textarea {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
+
+/* ── Hero Animations ──────────────────────────────────────────────────────── */
+
+@keyframes hero-fade-up {
+  from { opacity: 0; transform: translateY(30px); filter: blur(8px); }
+  to   { opacity: 1; transform: translateY(0);    filter: blur(0); }
+}
+
+@keyframes hero-glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(129,140,248,0.08), 0 0 60px rgba(129,140,248,0.04); }
+  50%      { box-shadow: 0 0 30px rgba(129,140,248,0.18), 0 0 80px rgba(129,140,248,0.08); }
+}
+
+@keyframes hero-grid-reveal {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes hero-orbit {
+  from { transform: rotate(0deg) translateX(var(--orbit-r)) rotate(0deg); }
+  to   { transform: rotate(360deg) translateX(var(--orbit-r)) rotate(-360deg); }
+}
+
+@keyframes hero-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-14px); }
+}
+
+@keyframes hero-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes hero-dash {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes hero-beam {
+  0%   { opacity: 0; transform: translateY(40px) scaleY(0); }
+  20%  { opacity: 1; transform: translateY(0) scaleY(1); }
+  80%  { opacity: 1; transform: translateY(0) scaleY(1); }
+  100% { opacity: 0; transform: translateY(-40px) scaleY(0); }
+}
+
+.hero-stagger-1 { animation: hero-fade-up 0.8s cubic-bezier(0.16,1,0.3,1) 0.1s both; }
+.hero-stagger-2 { animation: hero-fade-up 0.8s cubic-bezier(0.16,1,0.3,1) 0.25s both; }
+.hero-stagger-3 { animation: hero-fade-up 0.8s cubic-bezier(0.16,1,0.3,1) 0.4s both; }
+.hero-stagger-4 { animation: hero-fade-up 0.8s cubic-bezier(0.16,1,0.3,1) 0.55s both; }
+
+.hero-search-glow {
+  animation: hero-glow-pulse 3s ease-in-out infinite;
+}
+
+.hero-orbit-particle {
+  animation: hero-orbit var(--orbit-dur, 20s) linear infinite;
+}
+
+.hero-float {
+  animation: hero-float 6s ease-in-out infinite;
+}
+
+.hero-shimmer-text {
+  background-size: 200% auto;
+  animation: hero-shimmer 4s linear infinite;
+}

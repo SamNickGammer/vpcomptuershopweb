@@ -17,6 +17,11 @@ import {
   Mail,
   X,
   ChevronRight,
+  Cpu,
+  MemoryStick,
+  HardDrive,
+  Monitor,
+  Zap,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -112,131 +117,166 @@ function SearchDropdown({
   const isEmpty = results && !hasCategories && !hasProducts;
 
   return (
-    <div className="absolute top-full left-0 right-0 mt-2 bg-card rounded-xl border border-border shadow-2xl z-50 max-h-[70vh] overflow-y-auto">
+    <div className="absolute top-full left-0 right-0 mt-3 rounded-2xl border border-border/80 shadow-[0_20px_60px_rgba(0,0,0,0.5)] z-50 max-h-[75vh] overflow-hidden backdrop-blur-xl bg-[#0a0a0c]/95">
       {loading && (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          <span className="ml-2 text-sm text-muted-foreground">
-            Searching...
+        <div className="flex flex-col items-center justify-center py-12 gap-3">
+          <div className="relative">
+            <div className="h-8 w-8 rounded-full border-2 border-indigo-500/20 border-t-indigo-400 animate-spin" />
+          </div>
+          <span className="text-sm text-muted-foreground/60">
+            Searching for &ldquo;{query}&rdquo;...
           </span>
         </div>
       )}
 
       {isEmpty && !loading && (
-        <div className="py-8 text-center text-muted-foreground text-sm">
-          No results found for &ldquo;{query}&rdquo;
+        <div className="flex flex-col items-center py-12 gap-2">
+          <Search className="h-8 w-8 text-muted-foreground/20" />
+          <p className="text-muted-foreground/60 text-sm">
+            No results for &ldquo;<span className="text-foreground/70">{query}</span>&rdquo;
+          </p>
+          <p className="text-muted-foreground/40 text-xs">Try a different search term</p>
         </div>
       )}
 
       {!loading && results && (hasCategories || hasProducts) && (
-        <div className="p-3">
+        <div className="overflow-y-auto max-h-[70vh]">
           {/* Categories */}
           {hasCategories && (
-            <div className="mb-4">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">
-                Categories ({results.categories.length})
-              </p>
-              <div className="flex gap-2 overflow-x-auto pb-1">
+            <div className="px-2 pt-3 pb-2">
+              <div className="flex items-center justify-between px-3 mb-2">
+                <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+                  Categories
+                </span>
+                {results.categories.length > 4 && (
+                  <Link
+                    href={`/products?search=${encodeURIComponent(query)}`}
+                    onClick={onClose}
+                    className="text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors"
+                  >
+                    View all
+                  </Link>
+                )}
+              </div>
+              <div className="flex gap-1.5 px-1 overflow-x-auto pb-1">
                 {results.categories.slice(0, 4).map((cat) => (
                   <Link
                     key={cat.id}
                     href={`/products?categoryId=${cat.id}`}
                     onClick={onClose}
-                    className="flex-shrink-0 flex items-center gap-2 bg-secondary/80 hover:bg-secondary rounded-lg px-3 py-2 border border-border hover:border-primary/50 transition-colors"
+                    className="flex-shrink-0 flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.04] hover:border-indigo-500/20 transition-all duration-200 group"
                   >
-                    <div className="w-8 h-8 rounded-full bg-secondary overflow-hidden flex items-center justify-center border border-border">
+                    <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500/10 to-purple-500/10 overflow-hidden flex items-center justify-center border border-white/[0.06]">
                       {cat.imageUrl ? (
                         <Image
                           src={cat.imageUrl}
                           alt={cat.name}
-                          width={32}
-                          height={32}
+                          width={36}
+                          height={36}
                           className="object-cover w-full h-full"
                         />
                       ) : (
-                        <FolderTree className="h-4 w-4 text-muted-foreground" />
+                        <FolderTree className="h-4 w-4 text-indigo-400/50" />
                       )}
                     </div>
-                    <span className="text-sm font-medium whitespace-nowrap">
+                    <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground whitespace-nowrap transition-colors">
                       {cat.name}
                     </span>
+                    <ChevronRight className="h-3 w-3 text-muted-foreground/30 group-hover:text-indigo-400/60 transition-colors" />
                   </Link>
                 ))}
-                {results.categories.length > 4 && (
-                  <Link
-                    href={`/products?search=${encodeURIComponent(query)}`}
-                    onClick={onClose}
-                    className="flex-shrink-0 flex items-center gap-1 text-primary text-sm hover:underline px-2 py-2"
-                  >
-                    View more
-                    <ChevronRight className="h-3 w-3" />
-                  </Link>
-                )}
               </div>
             </div>
           )}
 
+          {/* Divider */}
+          {hasCategories && hasProducts && (
+            <div className="mx-4 h-px bg-gradient-to-r from-transparent via-border/60 to-transparent" />
+          )}
+
           {/* Products */}
           {hasProducts && (
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">
-                Products ({results.totalProducts})
-              </p>
-              <div className="space-y-1">
-                {results.products.slice(0, 3).map((product) => (
+            <div className="px-2 py-2">
+              <div className="flex items-center justify-between px-3 mb-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+                  Products
+                </span>
+                <span className="text-[11px] text-muted-foreground/40">
+                  {results.totalProducts} found
+                </span>
+              </div>
+              <div className="space-y-0.5">
+                {results.products.slice(0, 4).map((product) => (
                   <Link
                     key={product.id}
                     href={`/products/${product.slug}`}
                     onClick={onClose}
-                    className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-secondary/80 transition-colors"
+                    className="flex items-center gap-3.5 rounded-xl px-3 py-3 hover:bg-white/[0.04] transition-all duration-200 group"
                   >
-                    <div className="w-12 h-12 rounded-lg bg-secondary overflow-hidden flex-shrink-0 border border-border">
+                    {/* Image */}
+                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-secondary to-secondary/50 overflow-hidden flex-shrink-0 border border-white/[0.04] group-hover:border-indigo-500/20 transition-colors">
                       {product.image ? (
                         <Image
                           src={product.image.url}
                           alt={product.image.altText || product.name}
-                          width={48}
-                          height={48}
+                          width={56}
+                          height={56}
                           className="object-cover w-full h-full"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <FolderTree className="h-5 w-5 text-muted-foreground" />
+                          <FolderTree className="h-5 w-5 text-muted-foreground/30" />
                         </div>
                       )}
                     </div>
+
+                    {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
+                      <p className="text-sm font-medium text-foreground/90 group-hover:text-foreground truncate transition-colors">
                         {product.name}
                       </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                      <div className="flex items-center gap-2">
-                        {product.compareAtPrice && (
-                          <span className="text-xs text-muted-foreground line-through">
-                            {formatPrice(product.compareAtPrice)}
-                          </span>
-                        )}
-                        <span className="text-sm font-bold">
-                          {product.price
-                            ? formatPrice(product.price)
-                            : "N/A"}
+                      <div className="flex items-center gap-2 mt-1">
+                        <ConditionBadge condition={product.condition} />
+                        <span className={cn(
+                          "text-[10px] font-medium flex items-center gap-1",
+                          product.inStock ? "text-emerald-500/70" : "text-red-400/70"
+                        )}>
+                          <span className={cn(
+                            "w-1 h-1 rounded-full",
+                            product.inStock ? "bg-emerald-500" : "bg-red-400"
+                          )} />
+                          {product.inStock ? "In Stock" : "Out of Stock"}
                         </span>
                       </div>
-                      <ConditionBadge condition={product.condition} />
+                    </div>
+
+                    {/* Price */}
+                    <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+                      <span className="text-sm font-bold text-foreground/90 font-mono">
+                        {product.price ? formatPrice(product.price) : "N/A"}
+                      </span>
+                      {product.compareAtPrice && (
+                        <span className="text-[11px] text-muted-foreground/50 line-through font-mono">
+                          {formatPrice(product.compareAtPrice)}
+                        </span>
+                      )}
                     </div>
                   </Link>
                 ))}
               </div>
-              {results.totalProducts > 3 && (
-                <Link
-                  href={`/products?search=${encodeURIComponent(query)}`}
-                  onClick={onClose}
-                  className="flex items-center justify-center gap-1 mt-2 py-2 text-primary text-sm font-medium hover:underline"
-                >
-                  View all {results.totalProducts} results
-                  <ArrowRight className="h-3 w-3" />
-                </Link>
+
+              {/* View all results */}
+              {results.totalProducts > 4 && (
+                <div className="px-1 pt-1 pb-1">
+                  <Link
+                    href={`/products?search=${encodeURIComponent(query)}`}
+                    onClick={onClose}
+                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-indigo-500/[0.06] hover:bg-indigo-500/[0.1] border border-indigo-500/10 text-indigo-400 text-sm font-medium transition-all duration-200 group"
+                  >
+                    View all {results.totalProducts} results
+                    <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                </div>
               )}
             </div>
           )}
@@ -409,67 +449,152 @@ export default function HomePage() {
   return (
     <main className="min-h-screen">
       {/* ── Section 1: Hero with Search ─────────────────────────────────────── */}
-      <section className="relative py-20 md:py-32 overflow-hidden">
-        {/* Subtle radial gradient background */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(129,140,248,0.08) 0%, rgba(139,92,246,0.04) 40%, transparent 70%)",
-          }}
-        />
+      <section className="relative py-24 md:py-36 lg:py-44 overflow-x-clip">
+        {/* ── Layered background ── */}
+        {/* Base gradient */}
+        <div className="absolute inset-0 pointer-events-none" style={{
+          background: "radial-gradient(ellipse 100% 80% at 50% -30%, rgba(129,140,248,0.12) 0%, rgba(99,102,241,0.06) 30%, transparent 70%)"
+        }} />
+        {/* Secondary warm accent */}
+        <div className="absolute inset-0 pointer-events-none" style={{
+          background: "radial-gradient(ellipse 60% 50% at 80% 20%, rgba(168,85,247,0.06) 0%, transparent 60%)"
+        }} />
+        <div className="absolute inset-0 pointer-events-none" style={{
+          background: "radial-gradient(ellipse 50% 40% at 15% 60%, rgba(56,189,248,0.04) 0%, transparent 50%)"
+        }} />
 
+        {/* ── Circuit-board grid ── */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ animation: "hero-grid-reveal 1.5s ease-out 0.2s both" }}>
+          <svg className="absolute inset-0 w-full h-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="hero-grid" width="60" height="60" patternUnits="userSpaceOnUse">
+                <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#818cf8" strokeWidth="0.5" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#hero-grid)" />
+          </svg>
+          {/* Horizontal beam lines */}
+          <div className="absolute left-0 right-0 top-[30%] h-px bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent" />
+          <div className="absolute left-0 right-0 top-[70%] h-px bg-gradient-to-r from-transparent via-purple-500/8 to-transparent" />
+          <div className="absolute top-0 bottom-0 left-[20%] w-px bg-gradient-to-b from-transparent via-indigo-500/6 to-transparent" />
+          <div className="absolute top-0 bottom-0 right-[25%] w-px bg-gradient-to-b from-transparent via-sky-500/6 to-transparent" />
+        </div>
+
+        {/* ── Orbiting particles ── */}
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+          {/* Ring 1 */}
+          <div className="absolute w-[500px] h-[500px] md:w-[700px] md:h-[700px] rounded-full border border-indigo-500/[0.04]" />
+          <div className="absolute w-[500px] h-[500px] md:w-[700px] md:h-[700px] hero-orbit-particle" style={{ "--orbit-r": "250px", "--orbit-dur": "30s" } as React.CSSProperties}>
+            <div className="w-2 h-2 rounded-full bg-indigo-400/40 shadow-[0_0_12px_rgba(129,140,248,0.4)]" />
+          </div>
+          <div className="absolute w-[500px] h-[500px] md:w-[700px] md:h-[700px] hero-orbit-particle" style={{ "--orbit-r": "250px", "--orbit-dur": "30s", animationDelay: "-15s" } as React.CSSProperties}>
+            <div className="w-1.5 h-1.5 rounded-full bg-purple-400/30 shadow-[0_0_8px_rgba(168,85,247,0.3)]" />
+          </div>
+          {/* Ring 2 */}
+          <div className="absolute w-[350px] h-[350px] md:w-[480px] md:h-[480px] rounded-full border border-purple-500/[0.03]" />
+          <div className="absolute w-[350px] h-[350px] md:w-[480px] md:h-[480px] hero-orbit-particle" style={{ "--orbit-r": "175px", "--orbit-dur": "22s", animationDirection: "reverse" } as React.CSSProperties}>
+            <div className="w-1.5 h-1.5 rounded-full bg-sky-400/30 shadow-[0_0_8px_rgba(56,189,248,0.3)]" />
+          </div>
+        </div>
+
+        {/* ── Floating hardware icons ── */}
+        <div className="absolute inset-0 pointer-events-none hidden md:block">
+          <div className="absolute top-[15%] left-[8%] hero-float" style={{ animationDelay: "0s", animationDuration: "7s" }}>
+            <div className="p-3 rounded-xl bg-indigo-500/[0.06] border border-indigo-500/[0.08] backdrop-blur-sm">
+              <Cpu className="h-6 w-6 text-indigo-400/40" />
+            </div>
+          </div>
+          <div className="absolute top-[20%] right-[10%] hero-float" style={{ animationDelay: "-2s", animationDuration: "8s" }}>
+            <div className="p-3 rounded-xl bg-purple-500/[0.06] border border-purple-500/[0.08] backdrop-blur-sm">
+              <MemoryStick className="h-6 w-6 text-purple-400/40" />
+            </div>
+          </div>
+          <div className="absolute bottom-[25%] left-[12%] hero-float" style={{ animationDelay: "-4s", animationDuration: "9s" }}>
+            <div className="p-3 rounded-xl bg-sky-500/[0.06] border border-sky-500/[0.08] backdrop-blur-sm">
+              <HardDrive className="h-6 w-6 text-sky-400/40" />
+            </div>
+          </div>
+          <div className="absolute bottom-[20%] right-[8%] hero-float" style={{ animationDelay: "-1s", animationDuration: "6s" }}>
+            <div className="p-3 rounded-xl bg-emerald-500/[0.06] border border-emerald-500/[0.08] backdrop-blur-sm">
+              <Monitor className="h-6 w-6 text-emerald-400/40" />
+            </div>
+          </div>
+          <div className="absolute top-[55%] right-[20%] hero-float" style={{ animationDelay: "-3s", animationDuration: "7.5s" }}>
+            <div className="p-2.5 rounded-lg bg-amber-500/[0.05] border border-amber-500/[0.08] backdrop-blur-sm">
+              <Zap className="h-5 w-5 text-amber-400/30" />
+            </div>
+          </div>
+        </div>
+
+        {/* ── Content ── */}
         <div className="relative max-w-4xl mx-auto px-4 text-center">
           {/* Badge */}
-          <div className="inline-flex items-center rounded-full border border-border bg-secondary/60 backdrop-blur-sm px-4 py-1.5 text-xs font-medium text-muted-foreground mb-6">
-            Patna&apos;s Trusted Computer Shop
+          <div className="hero-stagger-1">
+            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/[0.06] backdrop-blur-sm px-5 py-2 text-xs font-medium text-indigo-300/90 mb-8">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-60" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-400" />
+              </span>
+              Patna&apos;s Trusted Computer Hardware Shop
+            </div>
           </div>
 
           {/* Heading */}
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-4">
-            <span
-              className="bg-clip-text text-transparent"
-              style={{
-                backgroundImage:
-                  "linear-gradient(to bottom right, #fafafa 30%, #71717a 100%)",
-              }}
-            >
+          <h1 className="hero-stagger-2 text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 leading-[1.1]">
+            <span className="hero-shimmer-text bg-clip-text text-transparent" style={{
+              backgroundImage: "linear-gradient(100deg, #e2e8f0 0%, #f8fafc 20%, #818cf8 40%, #f8fafc 60%, #e2e8f0 80%, #818cf8 100%)",
+              backgroundSize: "200% auto",
+            }}>
               Find Your Perfect
-              <br />
+            </span>
+            <br />
+            <span className="bg-clip-text text-transparent" style={{
+              backgroundImage: "linear-gradient(to right, #fafafa, #a1a1aa)"
+            }}>
               Computer Hardware
             </span>
           </h1>
 
           {/* Subtitle */}
-          <p className="text-muted-foreground text-base md:text-lg max-w-2xl mx-auto mb-10">
-            Laptops, Motherboards, Processors, RAM &amp; More &mdash; Quality
-            Hardware at Best Prices
+          <p className="hero-stagger-3 text-muted-foreground text-base md:text-lg lg:text-xl max-w-2xl mx-auto mb-12 leading-relaxed">
+            Laptops, Motherboards, Processors, RAM &amp; More
+            <span className="hidden sm:inline"> &mdash; Quality Hardware at Best Prices in Bihar</span>
           </p>
 
           {/* Search Bar */}
-          <div ref={searchRef} className="relative max-w-2xl mx-auto">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => handleSearchInput(e.target.value)}
-                onFocus={() => searchQuery.length >= 2 && setShowDropdown(true)}
-                placeholder="Search products, categories..."
-                className="w-full h-14 pl-12 pr-12 rounded-2xl bg-secondary/80 backdrop-blur border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all text-base"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => {
-                    setSearchQuery("");
-                    setSearchResults(null);
-                    setShowDropdown(false);
-                  }}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
+          <div ref={searchRef} className="hero-stagger-4 relative max-w-2xl mx-auto">
+            <div className="relative hero-search-glow rounded-2xl">
+              {/* Animated border gradient */}
+              <div className="absolute -inset-px rounded-2xl bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-sky-500/20 opacity-60" />
+              <div className="relative">
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-indigo-400/60" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => handleSearchInput(e.target.value)}
+                  onFocus={() => searchQuery.length >= 2 && setShowDropdown(true)}
+                  placeholder="Search laptops, processors, RAM, motherboards..."
+                  className="w-full h-14 md:h-16 pl-13 pr-12 rounded-2xl bg-[#0c0c0e]/90 backdrop-blur-xl border-0 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-0 transition-all text-base"
+                  style={{ paddingLeft: "3.2rem" }}
+                />
+                {searchQuery ? (
+                  <button
+                    onClick={() => {
+                      setSearchQuery("");
+                      setSearchResults(null);
+                      setShowDropdown(false);
+                    }}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                ) : (
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1.5 text-[11px] text-muted-foreground/40">
+                    <kbd className="px-1.5 py-0.5 rounded border border-border/50 bg-secondary/50 font-mono">/</kbd>
+                    <span>to search</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {showDropdown && (
@@ -481,6 +606,22 @@ export default function HomePage() {
               />
             )}
           </div>
+
+          {/* Quick category pills — below search, hidden when dropdown is open */}
+          {!showDropdown && (
+            <div className="hero-stagger-4 flex flex-wrap items-center justify-center gap-2 mt-6">
+              <span className="text-xs text-muted-foreground/40">Popular:</span>
+              {["Laptops", "Processors", "RAM", "SSD", "Motherboards"].map((tag) => (
+                <Link
+                  key={tag}
+                  href={`/products?search=${encodeURIComponent(tag)}`}
+                  className="px-3.5 py-1.5 rounded-full text-xs font-medium text-muted-foreground/60 bg-white/[0.03] border border-white/[0.05] hover:border-indigo-500/30 hover:text-indigo-300 hover:bg-indigo-500/[0.06] transition-all duration-300"
+                >
+                  {tag}
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
