@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import { ProductImage } from "@/components/ui/product-image";
 import { cn, formatPrice } from "@/lib/utils/helpers";
 import {
   Search,
@@ -168,7 +168,7 @@ function SearchDropdown({
                   >
                     <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500/10 to-purple-500/10 overflow-hidden flex items-center justify-center border border-white/[0.06]">
                       {cat.imageUrl ? (
-                        <Image
+                        <ProductImage
                           src={cat.imageUrl}
                           alt={cat.name}
                           width={36}
@@ -216,7 +216,7 @@ function SearchDropdown({
                     {/* Image */}
                     <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-secondary to-secondary/50 overflow-hidden flex-shrink-0 border border-white/[0.04] group-hover:border-indigo-500/20 transition-colors">
                       {product.image ? (
-                        <Image
+                        <ProductImage
                           src={product.image.url}
                           alt={product.image.altText || product.name}
                           width={56}
@@ -298,7 +298,7 @@ function ProductCard({ product }: { product: FeaturedProduct }) {
         {/* Image */}
         <div className="relative aspect-[4/3] bg-secondary overflow-hidden">
           {image ? (
-            <Image
+            <ProductImage
               src={image.url}
               alt={image.altText || product.name}
               fill
@@ -653,7 +653,7 @@ export default function HomePage() {
                 >
                   <div className="w-20 h-20 md:w-24 md:h-24 rounded-full border-2 border-border overflow-hidden bg-secondary flex items-center justify-center transition-all duration-300 group-hover:scale-105 group-hover:border-primary">
                     {cat.imageUrl ? (
-                      <Image
+                      <ProductImage
                         src={cat.imageUrl}
                         alt={cat.name}
                         width={96}

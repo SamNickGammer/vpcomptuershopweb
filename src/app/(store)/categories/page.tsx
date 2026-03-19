@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import { ProductImage } from "@/components/ui/product-image";
 import { FolderTree, Loader2, ArrowRight, Package } from "lucide-react";
 import { cn } from "@/lib/utils/helpers";
 
@@ -96,7 +96,7 @@ export default function CategoriesPage() {
                       <div className="flex items-start gap-4 mb-4">
                         <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-white/[0.06] overflow-hidden flex items-center justify-center flex-shrink-0 group-hover:border-indigo-500/20 transition-colors">
                           {category.imageUrl ? (
-                            <Image
+                            <ProductImage
                               src={category.imageUrl}
                               alt={category.name}
                               width={64}

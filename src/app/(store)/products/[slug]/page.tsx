@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import { ProductImage } from "@/components/ui/product-image";
 import {
   ChevronRight,
   Minus,
@@ -179,7 +179,7 @@ function ImageGallery({ images }: { images: VariantImage[] }) {
       {/* Main image */}
       <div className="relative aspect-square rounded-xl bg-muted/50 overflow-hidden border border-border">
         {mainImage ? (
-          <Image
+          <ProductImage
             src={mainImage.url}
             alt={mainImage.altText || "Product image"}
             fill
@@ -208,7 +208,7 @@ function ImageGallery({ images }: { images: VariantImage[] }) {
                   : "border-border hover:border-muted-foreground/50"
               )}
             >
-              <Image
+              <ProductImage
                 src={img.url}
                 alt={img.altText || `Thumbnail ${idx + 1}`}
                 fill
@@ -353,6 +353,7 @@ export default function ProductDetailPage({
     Map<string, string>
   >(new Map());
   const [quantity, setQuantity] = useState(1);
+  const [mainImageIndex, setMainImageIndex] = useState(0);
   const { addItem } = useCart();
 
   // ── Fetch product ──────────────────────────────────────────────────────
@@ -551,7 +552,49 @@ export default function ProductDetailPage({
           {/* Two-column layout */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14">
             {/* Left: Image Gallery */}
-            <ImageGallery images={images} />
+            <div className="space-y-4">
+              {/* Main Image */}
+              <div className="relative aspect-square rounded-2xl overflow-hidden bg-secondary border border-border">
+                {images.length > 0 ? (
+                  <ProductImage
+                    src={images[mainImageIndex]?.url || images[0]?.url}
+                    alt={images[mainImageIndex]?.altText || product.name}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 1024px) 100vw, 50vw"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Package className="h-16 w-16 text-muted-foreground/20" />
+                  </div>
+                )}
+              </div>
+              {/* Thumbnails */}
+              {images.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {images.map((img, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setMainImageIndex(i)}
+                      className={cn(
+                        "relative w-16 h-16 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-colors",
+                        i === mainImageIndex
+                          ? "border-primary"
+                          : "border-border hover:border-primary/50"
+                      )}
+                    >
+                      <ProductImage
+                        src={img.url}
+                        alt={img.altText || `Image ${i + 1}`}
+                        fill
+                        className="object-cover"
+                        sizes="64px"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Right: Product Info */}
             <div className="space-y-6">

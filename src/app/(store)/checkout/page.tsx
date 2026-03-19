@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
+import { ProductImage } from "@/components/ui/product-image";
 import {
   ShoppingBag,
   MapPin,
@@ -477,7 +477,7 @@ export default function CheckoutPage() {
                 <div key={item.variantId} className="flex gap-3">
                   <div className="h-16 w-16 rounded-lg bg-secondary border border-border overflow-hidden flex-shrink-0">
                     {item.image ? (
-                      <Image
+                      <ProductImage
                         src={item.image}
                         alt={item.productName}
                         width={64}

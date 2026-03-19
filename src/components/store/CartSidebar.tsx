@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import { ProductImage } from "@/components/ui/product-image";
 import { useRouter } from "next/navigation";
 import { X, ShoppingBag, Plus, Minus, Trash2 } from "lucide-react";
 import { formatPrice, cn } from "@/lib/utils/helpers";
@@ -136,7 +136,7 @@ export default function CartSidebar({
                     {/* Product Image */}
                     <div className="relative h-[60px] w-[60px] flex-shrink-0 overflow-hidden rounded-md bg-secondary">
                       {item.image ? (
-                        <Image
+                        <ProductImage
                           src={item.image}
                           alt={item.productName}
                           fill

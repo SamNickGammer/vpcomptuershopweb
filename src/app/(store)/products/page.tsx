@@ -2,8 +2,8 @@
 
 import React, { Suspense, useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
+import { ProductImage } from "@/components/ui/product-image";
 import {
   Search,
   SlidersHorizontal,
@@ -141,7 +141,7 @@ function ProductCard({ product }: { product: ProductListItem }) {
       {/* Image */}
       <div className="relative aspect-square bg-muted/50 overflow-hidden">
         {variant?.image?.url ? (
-          <Image
+          <ProductImage
             src={variant.image.url}
             alt={variant.image.altText || product.name}
             fill
