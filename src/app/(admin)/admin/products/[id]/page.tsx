@@ -18,6 +18,8 @@ import {
   Sparkles,
   Eye,
   DollarSign,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, formatPrice } from "@/lib/utils/helpers";
@@ -180,12 +182,23 @@ export default function EditProductPage({
   const [options, setOptions] = useState<OptionEntry[]>([]);
   const [variants, setVariants] = useState<VariantEntry[]>([]);
 
-  // Variant Details — selected variant
-  const [selectedVariantId, setSelectedVariantId] = useState<string>("");
+  // Collapsed variants tracking
+  const [expandedVariants, setExpandedVariants] = useState<
+    Record<string, boolean>
+  >({});
+
+  // Product Images (from default variant)
+  const [productImages, setProductImages] = useState<VariantImageEntry[]>([]);
 
   // Image upload
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
+
+  // Variant image upload tracking
+  const [variantUploading, setVariantUploading] = useState<string | null>(null);
+  const [variantImageUrls, setVariantImageUrls] = useState<
+    Record<string, string>
+  >({});
 
   // Set All Prices
   const [bulkPrice, setBulkPrice] = useState("");
@@ -230,17 +243,19 @@ export default function EditProductPage({
 
         // Parse options
         const loadedOptions: OptionEntry[] = (p.options || []).map(
-          (o: { id?: string; name: string; values: { id?: string; value: string }[] }) => ({
+          (o: {
+            id?: string;
+            name: string;
+            values: { id?: string; value: string }[];
+          }) => ({
             id: o.id || generateId(),
             name: o.name,
-            values: o.values.map(
-              (v: { value: string }) => v.value
-            ),
+            values: o.values.map((v: { value: string }) => v.value),
           })
         );
         setOptions(loadedOptions);
 
-        // Parse variants
+        // Parse variants — CRITICAL: preserve isActive from API
         const loadedVariants: VariantEntry[] = (p.variants || []).map(
           (v: {
             id: string;
@@ -259,6 +274,7 @@ export default function EditProductPage({
             id: v.id || generateId(),
             name: v.name,
             sku: v.sku,
+            // Convert paise to rupees for display
             price: String(v.price / 100),
             compareAtPrice: v.compareAtPrice
               ? String(v.compareAtPrice / 100)
@@ -266,6 +282,7 @@ export default function EditProductPage({
             stock: String(v.stock),
             lowStockThreshold: String(v.lowStockThreshold),
             isDefault: v.isDefault,
+            // Preserve isActive from API — do NOT reset to true
             isActive: v.isActive,
             images: (v.images || []).map(
               (img: { url: string; altText?: string }) => ({
@@ -286,8 +303,15 @@ export default function EditProductPage({
         );
         setVariants(loadedVariants);
 
+        // Extract product images from default variant
+        const defaultVariant = loadedVariants.find((v) => v.isDefault);
+        if (defaultVariant) {
+          setProductImages(defaultVariant.images);
+        }
+
+        // Expand the first variant by default
         if (loadedVariants.length > 0) {
-          setSelectedVariantId(loadedVariants[0].id);
+          setExpandedVariants({ [loadedVariants[0].id]: true });
         }
       } else {
         toast.error(json.error || "Product not found");
@@ -306,15 +330,14 @@ export default function EditProductPage({
     fetchProduct();
   }, [fetchCategories, fetchProduct]);
 
-  // Keep selectedVariantId in sync
-  useEffect(() => {
-    if (
-      variants.length > 0 &&
-      !variants.find((v) => v.id === selectedVariantId)
-    ) {
-      setSelectedVariantId(variants[0].id);
-    }
-  }, [variants, selectedVariantId]);
+  // ── Toggle variant expansion ───────────────────────────────────────────────
+
+  const toggleVariantExpansion = (variantId: string) => {
+    setExpandedVariants((prev) => ({
+      ...prev,
+      [variantId]: !prev[variantId],
+    }));
+  };
 
   // ── Option Handlers ──────────────────────────────────────────────────────
 
@@ -394,7 +417,7 @@ export default function EditProductPage({
     const newVariants: VariantEntry[] = combinations.map(
       (combo, comboIdx) => {
         const variantName = combo.map((c) => c.value).join(" / ");
-        // Try to find existing variant with same name to preserve data
+        // Preserve existing variant data if name matches
         const existing = variants.find((v) => v.name === variantName);
         return {
           id: existing?.id || generateId(),
@@ -405,6 +428,7 @@ export default function EditProductPage({
           stock: existing?.stock || "0",
           lowStockThreshold: existing?.lowStockThreshold || "2",
           isDefault: comboIdx === 0,
+          // Preserve isActive from existing variant
           isActive: existing?.isActive ?? true,
           images: existing?.images || [],
           specs: existing?.specs || [],
@@ -431,7 +455,31 @@ export default function EditProductPage({
     );
   };
 
+  const handleAddVariant = () => {
+    const newVariant: VariantEntry = {
+      id: generateId(),
+      name: "",
+      sku: generateSku(),
+      price: "",
+      compareAtPrice: "",
+      stock: "0",
+      lowStockThreshold: "2",
+      isDefault: false,
+      isActive: true,
+      images: [],
+      specs: [],
+      optionValueIndices: [],
+    };
+    setVariants((prev) => [...prev, newVariant]);
+    setExpandedVariants((prev) => ({ ...prev, [newVariant.id]: true }));
+  };
+
   const handleRemoveVariant = (variantId: string) => {
+    const variant = variants.find((v) => v.id === variantId);
+    if (variant?.isDefault) {
+      toast.error("Cannot remove the default variant");
+      return;
+    }
     if (variants.length <= 1) {
       toast.error("Must have at least one variant");
       return;
@@ -454,13 +502,13 @@ export default function EditProductPage({
     toast.success(`Set price to Rs.${bulkPrice} for all variants`);
   };
 
-  // ── Variant Image Handlers ───────────────────────────────────────────────
+  // ── Product Image Handlers (Tab 1 — default variant images) ────────────
 
-  const selectedVariant = variants.find((v) => v.id === selectedVariantId);
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProductFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const files = e.target.files;
-    if (!files || files.length === 0 || !selectedVariantId) return;
+    if (!files || files.length === 0) return;
 
     setUploading(true);
     const newImages: VariantImageEntry[] = [];
@@ -488,42 +536,108 @@ export default function EditProductPage({
       }
     }
 
-    setVariants((prev) =>
-      prev.map((v) =>
-        v.id === selectedVariantId
-          ? { ...v, images: [...v.images, ...newImages] }
-          : v
-      )
-    );
+    setProductImages((prev) => [...prev, ...newImages]);
     setUploading(false);
     e.target.value = "";
   };
 
-  const handleAddImageUrl = () => {
-    if (!imageUrl.trim() || !selectedVariantId) return;
+  const handleAddProductImageUrl = () => {
+    if (!imageUrl.trim()) return;
     try {
       new URL(imageUrl);
     } catch {
       toast.error("Please enter a valid URL");
       return;
     }
+    setProductImages((prev) => [
+      ...prev,
+      { id: generateId(), url: imageUrl.trim(), altText: "" },
+    ]);
+    setImageUrl("");
+  };
+
+  const handleRemoveProductImage = (imageId: string) => {
+    setProductImages((prev) => prev.filter((img) => img.id !== imageId));
+  };
+
+  const handleProductImageAltText = (imageId: string, altText: string) => {
+    setProductImages((prev) =>
+      prev.map((img) => (img.id === imageId ? { ...img, altText } : img))
+    );
+  };
+
+  // ── Variant Image Handlers (per-variant in Tab 2) ──────────────────────
+
+  const handleVariantFileUpload = async (
+    variantId: string,
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setVariantUploading(variantId);
+    const newImages: VariantImageEntry[] = [];
+
+    for (const file of Array.from(files)) {
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch("/api/admin/upload", {
+          method: "POST",
+          body: formData,
+        });
+        const json = await res.json();
+        if (json.success) {
+          newImages.push({
+            id: generateId(),
+            url: json.data.url,
+            altText: "",
+          });
+        } else {
+          toast.error(`Failed to upload ${file.name}: ${json.error}`);
+        }
+      } catch {
+        toast.error(`Failed to upload ${file.name}`);
+      }
+    }
+
     setVariants((prev) =>
       prev.map((v) =>
-        v.id === selectedVariantId
+        v.id === variantId
+          ? { ...v, images: [...v.images, ...newImages] }
+          : v
+      )
+    );
+    setVariantUploading(null);
+    e.target.value = "";
+  };
+
+  const handleAddVariantImageUrl = (variantId: string) => {
+    const url = (variantImageUrls[variantId] || "").trim();
+    if (!url) return;
+    try {
+      new URL(url);
+    } catch {
+      toast.error("Please enter a valid URL");
+      return;
+    }
+    setVariants((prev) =>
+      prev.map((v) =>
+        v.id === variantId
           ? {
               ...v,
               images: [
                 ...v.images,
-                { id: generateId(), url: imageUrl.trim(), altText: "" },
+                { id: generateId(), url, altText: "" },
               ],
             }
           : v
       )
     );
-    setImageUrl("");
+    setVariantImageUrls((prev) => ({ ...prev, [variantId]: "" }));
   };
 
-  const handleRemoveImage = (variantId: string, imageId: string) => {
+  const handleRemoveVariantImage = (variantId: string, imageId: string) => {
     setVariants((prev) =>
       prev.map((v) =>
         v.id === variantId
@@ -533,7 +647,7 @@ export default function EditProductPage({
     );
   };
 
-  const handleImageAltText = (
+  const handleVariantImageAltText = (
     variantId: string,
     imageId: string,
     altText: string
@@ -609,7 +723,15 @@ export default function EditProductPage({
       return;
     }
 
-    for (const v of variants) {
+    // Merge product images into default variant
+    const finalVariants = variants.map((v) => {
+      if (v.isDefault) {
+        return { ...v, images: productImages };
+      }
+      return v;
+    });
+
+    for (const v of finalVariants) {
       if (!v.name.trim()) {
         toast.error("All variants must have a name");
         return;
@@ -624,7 +746,7 @@ export default function EditProductPage({
       }
     }
 
-    for (const v of variants) {
+    for (const v of finalVariants) {
       for (const s of v.specs) {
         if (!s.key.trim() || !s.value.trim()) {
           toast.error(
@@ -652,9 +774,10 @@ export default function EditProductPage({
           name: o.name.trim(),
           values: o.values,
         })),
-        variants: variants.map((v) => ({
+        variants: finalVariants.map((v) => ({
           name: v.name.trim(),
           sku: v.sku.trim(),
+          // Convert rupees back to paise for API
           price: Math.round(Number(v.price) * 100),
           compareAtPrice: v.compareAtPrice
             ? Math.round(Number(v.compareAtPrice) * 100)
@@ -772,19 +895,19 @@ export default function EditProductPage({
         </Button>
       </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="basic" className="space-y-6">
-        <TabsList className="bg-secondary rounded-lg p-1 w-full grid grid-cols-4">
-          <TabsTrigger value="basic">Basic Info</TabsTrigger>
-          <TabsTrigger value="options">Options & Variants</TabsTrigger>
-          <TabsTrigger value="details">Variant Details</TabsTrigger>
+      {/* Tabs — 3 tabs: Product Info, Variants, Preview */}
+      <Tabs defaultValue="info" className="space-y-6">
+        <TabsList className="bg-secondary rounded-lg p-1 w-full grid grid-cols-3">
+          <TabsTrigger value="info">Product Info</TabsTrigger>
+          <TabsTrigger value="variants">Variants</TabsTrigger>
           <TabsTrigger value="preview">Preview</TabsTrigger>
         </TabsList>
 
-        {/* ── Tab 1: Basic Info ────────────────────────────────────────────── */}
-        <TabsContent value="basic">
+        {/* ── Tab 1: Product Info ──────────────────────────────────────────── */}
+        <TabsContent value="info">
           <div className="grid gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-2 space-y-6">
+              {/* Product Details */}
               <Card className="bg-card rounded-xl border-border">
                 <CardHeader className="border-b border-border">
                   <CardTitle className="text-foreground">
@@ -856,8 +979,135 @@ export default function EditProductPage({
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Product Images */}
+              <Card className="bg-card rounded-xl border-border">
+                <CardHeader className="border-b border-border">
+                  <CardTitle className="text-foreground">
+                    Product Images
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-6 space-y-6">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label
+                      htmlFor="product-file-upload"
+                      className={cn(
+                        "flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border p-8 text-center cursor-pointer transition-colors hover:border-primary/50 hover:bg-secondary/50",
+                        uploading && "pointer-events-none opacity-50"
+                      )}
+                    >
+                      {uploading ? (
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      ) : (
+                        <UploadCloud className="h-8 w-8 text-muted-foreground" />
+                      )}
+                      <p className="mt-3 text-sm font-medium text-foreground">
+                        {uploading ? "Uploading..." : "Upload Images"}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        PNG, JPG up to 5MB
+                      </p>
+                    </label>
+                    <input
+                      id="product-file-upload"
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handleProductFileUpload}
+                      disabled={uploading}
+                    />
+
+                    <div className="flex flex-col justify-center space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        Or add by URL
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <LinkIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                          <Input
+                            placeholder="https://example.com/image.jpg"
+                            value={imageUrl}
+                            onChange={(e) => setImageUrl(e.target.value)}
+                            className="pl-9 bg-secondary border-border rounded-lg"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleAddProductImageUrl();
+                              }
+                            }}
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleAddProductImageUrl}
+                          className="border-border hover:bg-secondary"
+                        >
+                          Add
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {productImages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-12 text-center">
+                      <ImageIcon className="h-7 w-7 text-muted-foreground/50" />
+                      <p className="mt-3 text-sm text-muted-foreground">
+                        No product images yet
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {productImages.map((img) => (
+                        <div
+                          key={img.id}
+                          className="rounded-xl overflow-hidden border border-border relative group"
+                        >
+                          <div className="relative aspect-square">
+                            <Image
+                              src={img.url}
+                              alt={img.altText || "Product image"}
+                              fill
+                              className="object-cover"
+                              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                            />
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="h-9 w-9 rounded-full bg-white/10 backdrop-blur-sm text-white hover:bg-red-500/50 hover:text-white"
+                                onClick={() =>
+                                  handleRemoveProductImage(img.id)
+                                }
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="p-2.5 bg-card">
+                            <Input
+                              placeholder="Alt text"
+                              value={img.altText}
+                              onChange={(e) =>
+                                handleProductImageAltText(
+                                  img.id,
+                                  e.target.value
+                                )
+                              }
+                              className="bg-secondary border-border rounded-lg text-xs h-8"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
 
+            {/* Right Column — Status */}
             <div>
               <Card className="bg-card rounded-xl border-border">
                 <CardHeader className="border-b border-border">
@@ -906,8 +1156,8 @@ export default function EditProductPage({
           </div>
         </TabsContent>
 
-        {/* ── Tab 2: Options & Variants ───────────────────────────────────── */}
-        <TabsContent value="options" className="space-y-6">
+        {/* ── Tab 2: Variants ─────────────────────────────────────────────── */}
+        <TabsContent value="variants" className="space-y-6">
           {/* Product Options */}
           <Card className="bg-card rounded-xl border-border">
             <CardHeader className="border-b border-border">
@@ -1042,30 +1292,43 @@ export default function EditProductPage({
             </CardContent>
           </Card>
 
-          {/* Variants */}
+          {/* Generate Variants Button */}
+          {options.length > 0 && (
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                onClick={handleGenerateVariants}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
+              >
+                <Sparkles className="h-4 w-4" />
+                Generate Variants
+              </Button>
+            </div>
+          )}
+
+          {/* Variants — collapsible cards */}
           <Card className="bg-card rounded-xl border-border">
             <CardHeader className="border-b border-border">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-foreground">Variants</CardTitle>
+                  <CardTitle className="text-foreground">
+                    Variants ({variants.length})
+                  </CardTitle>
                   <p className="mt-1.5 text-sm text-muted-foreground">
                     {options.length > 0
-                      ? "Generate variants from option combinations, then set price and stock."
+                      ? "Each variant is a purchasable combination. Set price, stock, images, and specs per variant."
                       : "Single Default variant. Add options above to create more."}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  {options.length > 0 && (
-                    <Button
-                      type="button"
-                      onClick={handleGenerateVariants}
-                      className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
-                    >
-                      <Sparkles className="h-4 w-4" />
-                      Generate Variants
-                    </Button>
-                  )}
-                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleAddVariant}
+                  className="border-border hover:bg-secondary"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Variant
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
@@ -1102,446 +1365,450 @@ export default function EditProductPage({
                 </div>
               )}
 
-              {/* Variant list */}
+              {/* Collapsible variant cards */}
               <div className="space-y-3">
-                {variants.map((variant, index) => (
-                  <Card
-                    key={variant.id}
-                    className="bg-secondary/50 rounded-lg border-border p-4"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                          {variant.isDefault
-                            ? "Default Variant"
-                            : `Variant ${index + 1}`}
-                        </span>
-                        {variant.isDefault && (
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] bg-primary/10 text-primary border-primary/20"
-                          >
-                            Default
-                          </Badge>
-                        )}
-                      </div>
-                      <Button
+                {variants.map((variant, index) => {
+                  const isExpanded = expandedVariants[variant.id] ?? false;
+                  return (
+                    <Card
+                      key={variant.id}
+                      className="bg-secondary/50 rounded-lg border-border overflow-hidden"
+                    >
+                      {/* Collapsed header — always visible */}
+                      <button
                         type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
-                        onClick={() => handleRemoveVariant(variant.id)}
-                        disabled={variants.length <= 1}
+                        className="w-full flex items-center justify-between p-4 text-left hover:bg-secondary/80 transition-colors"
+                        onClick={() => toggleVariantExpansion(variant.id)}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-12">
-                      <div className="sm:col-span-3 space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">
-                          Name
-                        </Label>
-                        <Input
-                          placeholder="e.g., Red / 8GB"
-                          value={variant.name}
-                          onChange={(e) =>
-                            handleVariantChange(
-                              variant.id,
-                              "name",
-                              e.target.value
-                            )
-                          }
-                          className="bg-background border-border rounded-lg"
-                        />
-                      </div>
-                      <div className="sm:col-span-2 space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">
-                          SKU
-                        </Label>
-                        <div className="flex items-center gap-1">
-                          <Input
-                            placeholder="VP-XXXX"
-                            value={variant.sku}
-                            onChange={(e) =>
-                              handleVariantChange(
-                                variant.id,
-                                "sku",
-                                e.target.value
-                              )
-                            }
-                            className="bg-background border-border rounded-lg font-mono text-xs"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground hover:bg-secondary"
-                            onClick={() =>
-                              handleVariantChange(
-                                variant.id,
-                                "sku",
-                                generateSku()
-                              )
-                            }
-                            title="Auto-generate SKU"
-                          >
-                            <RefreshCw className="h-3.5 w-3.5" />
-                          </Button>
+                        <div className="flex items-center gap-3">
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                          )}
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-foreground">
+                              {variant.name || "Unnamed Variant"}
+                            </span>
+                            {variant.isDefault && (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] bg-primary/10 text-primary border-primary/20"
+                              >
+                                Default
+                              </Badge>
+                            )}
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-[10px]",
+                                variant.isActive
+                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                  : "bg-zinc-500/10 text-zinc-400 border-zinc-500/20"
+                              )}
+                            >
+                              {variant.isActive ? "Active" : "Inactive"}
+                            </Badge>
+                          </div>
                         </div>
-                      </div>
-                      <div className="sm:col-span-2 space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">
-                          Price (&#8377;) *
-                        </Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="1"
-                          placeholder="25000"
-                          value={variant.price}
-                          onChange={(e) =>
-                            handleVariantChange(
-                              variant.id,
-                              "price",
-                              e.target.value
-                            )
-                          }
-                          className="bg-background border-border rounded-lg font-mono text-xs"
-                        />
-                      </div>
-                      <div className="sm:col-span-2 space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">
-                          Compare (&#8377;)
-                        </Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="1"
-                          placeholder="30000"
-                          value={variant.compareAtPrice}
-                          onChange={(e) =>
-                            handleVariantChange(
-                              variant.id,
-                              "compareAtPrice",
-                              e.target.value
-                            )
-                          }
-                          className="bg-background border-border rounded-lg font-mono text-xs"
-                        />
-                      </div>
-                      <div className="sm:col-span-1 space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">
-                          Stock
-                        </Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={variant.stock}
-                          onChange={(e) =>
-                            handleVariantChange(
-                              variant.id,
-                              "stock",
-                              e.target.value
-                            )
-                          }
-                          className="bg-background border-border rounded-lg font-mono text-xs"
-                        />
-                      </div>
-                      <div className="sm:col-span-2 flex items-end pb-0.5">
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            checked={variant.isActive}
-                            onCheckedChange={(checked) =>
-                              handleVariantChange(
-                                variant.id,
-                                "isActive",
-                                checked
-                              )
-                            }
-                          />
-                          <Label className="text-xs text-muted-foreground">
-                            Active
-                          </Label>
+                        <div className="flex items-center gap-4">
+                          <span className="text-sm font-mono text-muted-foreground">
+                            {variant.sku}
+                          </span>
+                          <span className="text-sm font-mono text-foreground">
+                            {variant.price
+                              ? formatPrice(Number(variant.price) * 100)
+                              : "--"}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {variant.stock || "0"} in stock
+                          </span>
                         </div>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
+                      </button>
+
+                      {/* Expanded content */}
+                      {isExpanded && (
+                        <div className="border-t border-border p-4 space-y-5">
+                          {/* Basic variant fields */}
+                          <div className="grid gap-3 sm:grid-cols-12">
+                            <div className="sm:col-span-3 space-y-1.5">
+                              <Label className="text-xs text-muted-foreground">
+                                Name
+                              </Label>
+                              <Input
+                                placeholder="e.g., Red / 8GB"
+                                value={variant.name}
+                                onChange={(e) =>
+                                  handleVariantChange(
+                                    variant.id,
+                                    "name",
+                                    e.target.value
+                                  )
+                                }
+                                className="bg-background border-border rounded-lg"
+                              />
+                            </div>
+                            <div className="sm:col-span-2 space-y-1.5">
+                              <Label className="text-xs text-muted-foreground">
+                                SKU
+                              </Label>
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  placeholder="VP-XXXX"
+                                  value={variant.sku}
+                                  onChange={(e) =>
+                                    handleVariantChange(
+                                      variant.id,
+                                      "sku",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="bg-background border-border rounded-lg font-mono text-xs"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                                  onClick={() =>
+                                    handleVariantChange(
+                                      variant.id,
+                                      "sku",
+                                      generateSku()
+                                    )
+                                  }
+                                  title="Auto-generate SKU"
+                                >
+                                  <RefreshCw className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="sm:col-span-2 space-y-1.5">
+                              <Label className="text-xs text-muted-foreground">
+                                Price (&#8377;) *
+                              </Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="1"
+                                placeholder="25000"
+                                value={variant.price}
+                                onChange={(e) =>
+                                  handleVariantChange(
+                                    variant.id,
+                                    "price",
+                                    e.target.value
+                                  )
+                                }
+                                className="bg-background border-border rounded-lg font-mono text-xs"
+                              />
+                            </div>
+                            <div className="sm:col-span-2 space-y-1.5">
+                              <Label className="text-xs text-muted-foreground">
+                                Compare (&#8377;)
+                              </Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="1"
+                                placeholder="30000"
+                                value={variant.compareAtPrice}
+                                onChange={(e) =>
+                                  handleVariantChange(
+                                    variant.id,
+                                    "compareAtPrice",
+                                    e.target.value
+                                  )
+                                }
+                                className="bg-background border-border rounded-lg font-mono text-xs"
+                              />
+                            </div>
+                            <div className="sm:col-span-1 space-y-1.5">
+                              <Label className="text-xs text-muted-foreground">
+                                Stock
+                              </Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                value={variant.stock}
+                                onChange={(e) =>
+                                  handleVariantChange(
+                                    variant.id,
+                                    "stock",
+                                    e.target.value
+                                  )
+                                }
+                                className="bg-background border-border rounded-lg font-mono text-xs"
+                              />
+                            </div>
+                            <div className="sm:col-span-2 flex items-end pb-0.5">
+                              <div className="flex items-center gap-2">
+                                <Switch
+                                  checked={variant.isActive}
+                                  onCheckedChange={(checked) =>
+                                    handleVariantChange(
+                                      variant.id,
+                                      "isActive",
+                                      checked
+                                    )
+                                  }
+                                />
+                                <Label className="text-xs text-muted-foreground">
+                                  Active
+                                </Label>
+                              </div>
+                            </div>
+                          </div>
+
+                          <Separator className="bg-border" />
+
+                          {/* Variant Images */}
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                Images ({variant.images.length})
+                              </Label>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <label
+                                htmlFor={`variant-upload-${variant.id}`}
+                                className={cn(
+                                  "flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border cursor-pointer transition-colors hover:border-primary/50 hover:bg-secondary/50 text-sm text-muted-foreground",
+                                  variantUploading === variant.id &&
+                                    "pointer-events-none opacity-50"
+                                )}
+                              >
+                                {variantUploading === variant.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                                ) : (
+                                  <UploadCloud className="h-4 w-4" />
+                                )}
+                                Upload
+                              </label>
+                              <input
+                                id={`variant-upload-${variant.id}`}
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                className="hidden"
+                                onChange={(e) =>
+                                  handleVariantFileUpload(variant.id, e)
+                                }
+                                disabled={variantUploading === variant.id}
+                              />
+                              <div className="flex items-center gap-2 flex-1">
+                                <div className="relative flex-1">
+                                  <LinkIcon className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                                  <Input
+                                    placeholder="Image URL"
+                                    value={
+                                      variantImageUrls[variant.id] || ""
+                                    }
+                                    onChange={(e) =>
+                                      setVariantImageUrls((prev) => ({
+                                        ...prev,
+                                        [variant.id]: e.target.value,
+                                      }))
+                                    }
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        handleAddVariantImageUrl(variant.id);
+                                      }
+                                    }}
+                                    className="pl-8 bg-background border-border rounded-lg text-xs h-8"
+                                  />
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleAddVariantImageUrl(variant.id)
+                                  }
+                                  className="border-border hover:bg-secondary h-8 text-xs"
+                                >
+                                  Add
+                                </Button>
+                              </div>
+                            </div>
+
+                            {variant.images.length > 0 && (
+                              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+                                {variant.images.map((img) => (
+                                  <div
+                                    key={img.id}
+                                    className="rounded-lg overflow-hidden border border-border relative group"
+                                  >
+                                    <div className="relative aspect-square">
+                                      <Image
+                                        src={img.url}
+                                        alt={img.altText || "Variant image"}
+                                        fill
+                                        className="object-cover"
+                                        sizes="(max-width: 640px) 33vw, 16vw"
+                                      />
+                                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <Button
+                                          type="button"
+                                          size="icon"
+                                          variant="ghost"
+                                          className="h-7 w-7 rounded-full bg-white/10 backdrop-blur-sm text-white hover:bg-red-500/50 hover:text-white"
+                                          onClick={() =>
+                                            handleRemoveVariantImage(
+                                              variant.id,
+                                              img.id
+                                            )
+                                          }
+                                        >
+                                          <X className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                    <div className="p-1.5 bg-card">
+                                      <Input
+                                        placeholder="Alt text"
+                                        value={img.altText}
+                                        onChange={(e) =>
+                                          handleVariantImageAltText(
+                                            variant.id,
+                                            img.id,
+                                            e.target.value
+                                          )
+                                        }
+                                        className="bg-secondary border-border rounded text-[10px] h-6"
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <Separator className="bg-border" />
+
+                          {/* Variant Specs */}
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                Specs ({variant.specs.length})
+                              </Label>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleAddSpec(variant.id)}
+                                className="border-border hover:bg-secondary h-7 text-xs"
+                              >
+                                <Plus className="h-3 w-3" />
+                                Add Spec
+                              </Button>
+                            </div>
+
+                            {/* Quick add */}
+                            <div className="flex flex-wrap gap-1.5">
+                              {COMMON_SPECS.filter(
+                                (s) =>
+                                  !variant.specs.some((sp) => sp.key === s)
+                              ).map((spec) => (
+                                <Button
+                                  key={spec}
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 text-[10px] border-border hover:bg-secondary hover:border-primary/50 hover:text-primary px-2"
+                                  onClick={() =>
+                                    handleAddSpec(variant.id, spec, "")
+                                  }
+                                >
+                                  <Plus className="mr-0.5 h-2.5 w-2.5" />
+                                  {spec}
+                                </Button>
+                              ))}
+                            </div>
+
+                            {variant.specs.length > 0 && (
+                              <div className="space-y-2">
+                                {variant.specs.map((spec) => (
+                                  <div
+                                    key={spec.id}
+                                    className="flex items-center gap-2 p-2 rounded-lg bg-background border border-border"
+                                  >
+                                    <Input
+                                      placeholder="Key"
+                                      value={spec.key}
+                                      onChange={(e) =>
+                                        handleSpecChange(
+                                          variant.id,
+                                          spec.id,
+                                          "key",
+                                          e.target.value
+                                        )
+                                      }
+                                      className="flex-1 bg-secondary border-border rounded-lg text-xs h-8"
+                                    />
+                                    <Input
+                                      placeholder="Value"
+                                      value={spec.value}
+                                      onChange={(e) =>
+                                        handleSpecChange(
+                                          variant.id,
+                                          spec.id,
+                                          "value",
+                                          e.target.value
+                                        )
+                                      }
+                                      className="flex-1 bg-secondary border-border rounded-lg text-xs h-8"
+                                    />
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
+                                      onClick={() =>
+                                        handleRemoveSpec(variant.id, spec.id)
+                                      }
+                                    >
+                                      <X className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Remove variant button */}
+                          {!variant.isDefault && (
+                            <>
+                              <Separator className="bg-border" />
+                              <div className="flex justify-end">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleRemoveVariant(variant.id)
+                                  }
+                                  className="border-red-500/20 text-red-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 text-xs"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  Remove Variant
+                                </Button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* ── Tab 3: Variant Details ──────────────────────────────────────── */}
-        <TabsContent value="details" className="space-y-6">
-          {/* Variant Selector */}
-          <Card className="bg-card rounded-xl border-border">
-            <CardHeader className="border-b border-border">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-foreground">
-                  Variant Details
-                </CardTitle>
-                <Select
-                  value={selectedVariantId}
-                  onValueChange={setSelectedVariantId}
-                >
-                  <SelectTrigger className="w-[260px] bg-secondary border-border rounded-lg">
-                    <SelectValue placeholder="Select variant" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {variants.map((v) => (
-                      <SelectItem key={v.id} value={v.id}>
-                        {v.name || "Unnamed"}
-                        {v.isDefault ? " (Default)" : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardHeader>
-          </Card>
-
-          {selectedVariant && (
-            <>
-              {/* Images for selected variant */}
-              <Card className="bg-card rounded-xl border-border">
-                <CardHeader className="border-b border-border">
-                  <CardTitle className="text-foreground">
-                    Images for &ldquo;{selectedVariant.name}&rdquo;
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-6 space-y-6">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <label
-                      htmlFor="file-upload-edit"
-                      className={cn(
-                        "flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border p-8 text-center cursor-pointer transition-colors hover:border-primary/50 hover:bg-secondary/50",
-                        uploading && "pointer-events-none opacity-50"
-                      )}
-                    >
-                      {uploading ? (
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                      ) : (
-                        <UploadCloud className="h-8 w-8 text-muted-foreground" />
-                      )}
-                      <p className="mt-3 text-sm font-medium text-foreground">
-                        {uploading ? "Uploading..." : "Upload Images"}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        PNG, JPG up to 5MB
-                      </p>
-                    </label>
-                    <input
-                      id="file-upload-edit"
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      onChange={handleFileUpload}
-                      disabled={uploading}
-                    />
-
-                    <div className="flex flex-col justify-center space-y-3">
-                      <p className="text-sm text-muted-foreground">
-                        Or add by URL
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <div className="relative flex-1">
-                          <LinkIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                          <Input
-                            placeholder="https://example.com/image.jpg"
-                            value={imageUrl}
-                            onChange={(e) => setImageUrl(e.target.value)}
-                            className="pl-9 bg-secondary border-border rounded-lg"
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                handleAddImageUrl();
-                              }
-                            }}
-                          />
-                        </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={handleAddImageUrl}
-                          className="border-border hover:bg-secondary"
-                        >
-                          Add
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {selectedVariant.images.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-12 text-center">
-                      <ImageIcon className="h-7 w-7 text-muted-foreground/50" />
-                      <p className="mt-3 text-sm text-muted-foreground">
-                        No images for this variant yet
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {selectedVariant.images.map((img) => (
-                        <div
-                          key={img.id}
-                          className="rounded-xl overflow-hidden border border-border relative group"
-                        >
-                          <div className="relative aspect-square">
-                            <Image
-                              src={img.url}
-                              alt={img.altText || "Variant image"}
-                              fill
-                              className="object-cover"
-                              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                            />
-                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                              <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                className="h-9 w-9 rounded-full bg-white/10 backdrop-blur-sm text-white hover:bg-red-500/50 hover:text-white"
-                                onClick={() =>
-                                  handleRemoveImage(
-                                    selectedVariantId,
-                                    img.id
-                                  )
-                                }
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                          <div className="p-2.5 bg-card">
-                            <Input
-                              placeholder="Alt text"
-                              value={img.altText}
-                              onChange={(e) =>
-                                handleImageAltText(
-                                  selectedVariantId,
-                                  img.id,
-                                  e.target.value
-                                )
-                              }
-                              className="bg-secondary border-border rounded-lg text-xs h-8"
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Specs for selected variant */}
-              <Card className="bg-card rounded-xl border-border">
-                <CardHeader className="border-b border-border">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-foreground">
-                      Specs for &ldquo;{selectedVariant.name}&rdquo;
-                    </CardTitle>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => handleAddSpec(selectedVariantId)}
-                      className="border-border hover:bg-secondary"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add Spec
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-6 pt-6">
-                  <div className="space-y-2">
-                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                      Quick add
-                    </Label>
-                    <div className="flex flex-wrap gap-2">
-                      {COMMON_SPECS.filter(
-                        (s) =>
-                          !selectedVariant.specs.some((sp) => sp.key === s)
-                      ).map((spec) => (
-                        <Button
-                          key={spec}
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs border-border hover:bg-secondary hover:border-primary/50 hover:text-primary"
-                          onClick={() =>
-                            handleAddSpec(selectedVariantId, spec, "")
-                          }
-                        >
-                          <Plus className="mr-1 h-3 w-3" />
-                          {spec}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <Separator className="bg-border" />
-
-                  {selectedVariant.specs.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-10 text-center">
-                      <p className="text-sm text-muted-foreground">
-                        No specs for this variant. Use quick-add or
-                        &ldquo;Add Spec&rdquo;.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {selectedVariant.specs.map((spec) => (
-                        <div
-                          key={spec.id}
-                          className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 border border-border"
-                        >
-                          <Input
-                            placeholder="Key (e.g., RAM)"
-                            value={spec.key}
-                            onChange={(e) =>
-                              handleSpecChange(
-                                selectedVariantId,
-                                spec.id,
-                                "key",
-                                e.target.value
-                              )
-                            }
-                            className="flex-1 bg-background border-border rounded-lg"
-                          />
-                          <Input
-                            placeholder="Value (e.g., 16GB)"
-                            value={spec.value}
-                            onChange={(e) =>
-                              handleSpecChange(
-                                selectedVariantId,
-                                spec.id,
-                                "value",
-                                e.target.value
-                              )
-                            }
-                            className="flex-1 bg-background border-border rounded-lg"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-9 w-9 shrink-0 text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
-                            onClick={() =>
-                              handleRemoveSpec(selectedVariantId, spec.id)
-                            }
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </>
-          )}
-        </TabsContent>
-
-        {/* ── Tab 4: Preview ──────────────────────────────────────────────── */}
+        {/* ── Tab 3: Preview ──────────────────────────────────────────────── */}
         <TabsContent value="preview">
           <Card className="bg-card rounded-xl border-border">
             <CardHeader className="border-b border-border">
@@ -1558,7 +1825,9 @@ export default function EditProductPage({
                   {name || "Untitled Product"}
                 </h2>
                 {description && (
-                  <p className="text-sm text-muted-foreground">{description}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {description}
+                  </p>
                 )}
                 <div className="flex items-center gap-2">
                   <Badge
@@ -1591,6 +1860,34 @@ export default function EditProductPage({
                   </Badge>
                 </div>
               </div>
+
+              {/* Product images preview */}
+              {productImages.length > 0 && (
+                <>
+                  <Separator className="bg-border" />
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-foreground">
+                      Product Images
+                    </h3>
+                    <div className="flex gap-3 overflow-x-auto pb-2">
+                      {productImages.map((img) => (
+                        <div
+                          key={img.id}
+                          className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-border"
+                        >
+                          <Image
+                            src={img.url}
+                            alt={img.altText || "Product image"}
+                            fill
+                            className="object-cover"
+                            sizes="80px"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
 
               <Separator className="bg-border" />
 
@@ -1646,6 +1943,11 @@ export default function EditProductPage({
                         <div>
                           <div className="text-sm font-medium text-foreground">
                             {v.name}
+                            {v.isDefault && (
+                              <span className="ml-2 text-[10px] text-primary">
+                                (Default)
+                              </span>
+                            )}
                           </div>
                           <div className="text-xs text-muted-foreground font-mono">
                             {v.sku}
@@ -1693,6 +1995,45 @@ export default function EditProductPage({
                   ))}
                 </div>
               </div>
+
+              {/* Specs preview per variant */}
+              {variants.some((v) => v.specs.length > 0) && (
+                <>
+                  <Separator className="bg-border" />
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold text-foreground">
+                      Specifications
+                    </h3>
+                    {variants
+                      .filter((v) => v.specs.length > 0)
+                      .map((v) => (
+                        <div
+                          key={v.id}
+                          className="rounded-lg border border-border overflow-hidden"
+                        >
+                          <div className="px-4 py-2 bg-secondary/50 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                            {v.name}
+                          </div>
+                          <div className="divide-y divide-border">
+                            {v.specs.map((s) => (
+                              <div
+                                key={s.id}
+                                className="flex items-center px-4 py-2 text-sm"
+                              >
+                                <span className="w-1/3 text-muted-foreground">
+                                  {s.key}
+                                </span>
+                                <span className="text-foreground">
+                                  {s.value}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

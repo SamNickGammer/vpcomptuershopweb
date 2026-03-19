@@ -49,23 +49,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-type VariantImage = {
-  url: string;
-  altText?: string;
-};
-
-type ProductVariant = {
-  id: string;
-  name: string;
-  sku: string;
-  price: number;
-  compareAtPrice: number | null;
-  images: VariantImage[];
-  stock: number;
-  isDefault: boolean;
-  isActive: boolean;
-};
-
 type Product = {
   id: string;
   name: string;
@@ -77,7 +60,10 @@ type Product = {
   isActive: boolean;
   createdAt: string;
   categoryName: string | null;
-  variants: ProductVariant[];
+  variantsCount: number;
+  priceRange: { min: number; max: number };
+  firstImage: { url: string; altText?: string } | null;
+  totalStock: number;
 };
 
 type Category = {
@@ -110,26 +96,9 @@ const CONDITION_BADGE: Record<
 
 const LIMIT = 20;
 
-function getPriceRange(variants: ProductVariant[]): string {
-  if (variants.length === 0) return formatPrice(0);
-  const prices = variants.map((v) => v.price);
-  const min = Math.min(...prices);
-  const max = Math.max(...prices);
-  if (min === max) return formatPrice(min);
-  return `${formatPrice(min)} - ${formatPrice(max)}`;
-}
-
-function getTotalStock(variants: ProductVariant[]): number {
-  return variants.reduce((sum, v) => sum + v.stock, 0);
-}
-
-function getFirstImage(variants: ProductVariant[]): VariantImage | null {
-  for (const v of variants) {
-    if (v.images && v.images.length > 0) {
-      return v.images[0];
-    }
-  }
-  return null;
+function displayPriceRange(pr: { min: number; max: number }): string {
+  if (pr.min === pr.max) return formatPrice(pr.min);
+  return `${formatPrice(pr.min)} – ${formatPrice(pr.max)}`;
 }
 
 export default function ProductsPage() {
@@ -382,9 +351,9 @@ export default function ProductsPage() {
                 </TableHeader>
                 <TableBody>
                   {products.map((product) => {
-                    const img = getFirstImage(product.variants);
+                    const img = product.firstImage;
                     const conditionInfo = CONDITION_BADGE[product.condition];
-                    const totalStock = getTotalStock(product.variants);
+                    const totalStock = product.totalStock;
                     return (
                       <TableRow
                         key={product.id}
@@ -422,7 +391,7 @@ export default function ProductsPage() {
                         </TableCell>
                         <TableCell>
                           <span className="font-mono text-sm font-medium text-foreground">
-                            {getPriceRange(product.variants)}
+                            {displayPriceRange(product.priceRange)}
                           </span>
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
@@ -465,7 +434,7 @@ export default function ProductsPage() {
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
                           <span className="text-sm text-muted-foreground">
-                            {product.variants.length}
+                            {product.variantsCount}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">

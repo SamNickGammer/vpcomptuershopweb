@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   products,
@@ -8,6 +8,8 @@ import {
   productOptions,
   productOptionValues,
   variantOptionValues,
+  inventoryHistory,
+  orderItems,
 } from "@/lib/db/schema";
 import { getAdminFromCookie } from "@/lib/auth/admin";
 import { slugify } from "@/lib/utils/helpers";
@@ -276,12 +278,32 @@ export async function PUT(
 
       // If options or variants are provided, delete old and recreate
       if (options !== undefined || variants !== undefined) {
+        // Get existing variant IDs so we can clean up dependent records
+        const existingVariants = await tx
+          .select({ id: productVariants.id })
+          .from(productVariants)
+          .where(eq(productVariants.productId, id));
+        const variantIds = existingVariants.map((v) => v.id);
+
+        if (variantIds.length > 0) {
+          // Nullify order_items references (preserve order history)
+          await tx
+            .update(orderItems)
+            .set({ variantId: null })
+            .where(inArray(orderItems.variantId, variantIds));
+
+          // Delete inventory history for old variants
+          await tx
+            .delete(inventoryHistory)
+            .where(inArray(inventoryHistory.variantId, variantIds));
+        }
+
         // Delete old options (cascades to option values and variant_option_values)
         await tx
           .delete(productOptions)
           .where(eq(productOptions.productId, id));
 
-        // Delete old variants (cascades to variant_option_values)
+        // Delete old variants
         await tx
           .delete(productVariants)
           .where(eq(productVariants.productId, id));
@@ -437,7 +459,24 @@ export async function DELETE(
       );
     }
 
-    // Cascade delete handles variants/options/links
+    // Clean up dependent records before deleting
+    const existingVariants = await db
+      .select({ id: productVariants.id })
+      .from(productVariants)
+      .where(eq(productVariants.productId, id));
+    const variantIds = existingVariants.map((v) => v.id);
+
+    if (variantIds.length > 0) {
+      await db
+        .update(orderItems)
+        .set({ variantId: null })
+        .where(inArray(orderItems.variantId, variantIds));
+      await db
+        .delete(inventoryHistory)
+        .where(inArray(inventoryHistory.variantId, variantIds));
+    }
+
+    // Now cascade delete handles the rest
     await db.delete(products).where(eq(products.id, id));
 
     return NextResponse.json({
