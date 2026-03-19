@@ -7,14 +7,14 @@ import { getAdminFromCookie } from "@/lib/auth/admin";
 
 const createCouponSchema = z.object({
   code: z.string().min(1).max(50),
-  description: z.string().optional(),
+  description: z.string().optional().nullable(),
   discountType: z.enum(["percentage", "fixed"]),
   discountValue: z.number().int().min(1),
-  minOrderAmount: z.number().int().min(0).optional(),
-  maxDiscountAmount: z.number().int().min(0).optional(),
-  usageLimit: z.number().int().min(1).optional(),
-  validFrom: z.string().optional(),
-  validTo: z.string().optional(),
+  minOrderAmount: z.number().int().min(0).optional().nullable(),
+  maxDiscountAmount: z.number().int().min(0).optional().nullable(),
+  usageLimit: z.number().int().min(1).optional().nullable(),
+  validFrom: z.string().optional().nullable(),
+  validTo: z.string().optional().nullable(),
   isActive: z.boolean().optional(),
 });
 
