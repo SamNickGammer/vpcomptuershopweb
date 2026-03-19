@@ -10,7 +10,10 @@ const globalForDb = globalThis as unknown as {
 const connection =
   globalForDb.connection ??
   postgres(process.env.DATABASE_URL!, {
-    max: 1, // use 1 connection for serverless
+    max: 1,
+    idle_timeout: 20,
+    connect_timeout: 30,
+    prepare: false, // Required for Supabase Transaction Mode pooler (port 6543)
   });
 
 if (process.env.NODE_ENV !== "production") {

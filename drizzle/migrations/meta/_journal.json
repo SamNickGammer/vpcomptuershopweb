@@ -8,6 +8,13 @@
       "when": 1773831477475,
       "tag": "0000_rare_supreme_intelligence",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1773913361577,
+      "tag": "0001_sticky_cannonball",
+      "breakpoints": true
     }
   ]
 }

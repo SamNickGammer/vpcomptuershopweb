@@ -56,27 +56,27 @@ FUTURE    — planned but not in current scope
 | Feature                          | Status  | Notes                                       |
 |----------------------------------|---------|---------------------------------------------|
 | Admin layout (sidebar + header)  | PENDING | Shared across all admin pages               |
-| Admin dashboard page             | PENDING | Stats: orders today, revenue, low stock     |
+| Admin dashboard page             | DONE    | Stats: orders today, revenue, low stock     |
 | Admin sidebar navigation         | PENDING | Links to all admin sections                 |
 
 ### Admin Panel — Products
 
 | Feature                          | Status  | Notes                                       |
 |----------------------------------|---------|---------------------------------------------|
-| Product list page                | PENDING | Table with search, filter, pagination       |
-| Add product page                 | PENDING | Form with variants, specs, images           |
-| Edit product page                | PENDING |                                             |
-| Product image upload             | PENDING | Supabase Storage, drag-and-drop             |
-| Product variants management      | PENDING | Add/edit/delete variants per product        |
-| Product specs management         | PENDING | Key-value pairs                             |
-| Product API (admin CRUD)         | PENDING | POST/GET/PUT/DELETE /api/admin/products     |
+| Product list page                | DONE    | Table with search, filter, pagination       |
+| Add product page                 | DONE    | Form with variants, specs, images           |
+| Edit product page                | DONE    | Pre-filled form, delete support             |
+| Product image upload             | DONE    | Supabase Storage upload + URL input         |
+| Product variants management      | DONE    | Add/edit/delete variants per product        |
+| Product specs management         | DONE    | Key-value pairs with quick-add chips        |
+| Product API (admin CRUD)         | DONE    | POST/GET/PUT/DELETE /api/admin/products     |
 
 ### Admin Panel — Categories
 
 | Feature                          | Status  | Notes                                       |
 |----------------------------------|---------|---------------------------------------------|
-| Category list page               | PENDING | Tree view for hierarchy                     |
-| Add/edit category                | PENDING |                                             |
+| Category list page               | DONE    | Table view with image, parent, status       |
+| Add/edit category                | DONE    | Dialog with image upload, parent select     |
 | Category API                     | PENDING |                                             |
 
 ### Admin Panel — Inventory
@@ -177,4 +177,4 @@ Step 8 — Orders + Tracking
 
 ---
 
-Last updated: Admin auth complete. All schema tables live. Starting utilities + admin layout next.
+Last updated: 2026-03-19 — Dashboard page and Categories page (list + add/edit/delete) created.

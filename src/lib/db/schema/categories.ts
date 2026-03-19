@@ -14,6 +14,7 @@ export const categories = pgTable("categories", {
   name: varchar("name", { length: 150 }).notNull(),
   slug: varchar("slug", { length: 200 }).notNull().unique(),
   description: text("description"),
+  imageUrl: text("image_url"),
   parentId: uuid("parent_id"), // self-ref for hierarchy
   sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
