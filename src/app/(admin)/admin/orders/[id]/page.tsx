@@ -14,6 +14,13 @@ import {
   Phone,
   MapPin,
   Calendar,
+  CreditCard,
+  IndianRupee,
+  CheckCircle2,
+  RotateCcw,
+  Tag,
+  Hash,
+  Receipt,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, formatPrice } from "@/lib/utils/helpers";
@@ -45,6 +52,14 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import type { ShippingAddress } from "@/types";
 
 type OrderStatus =
@@ -58,6 +73,7 @@ type OrderStatus =
   | "returned";
 
 type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
+type PaymentMethod = "cod" | "online" | "upi" | "bank_transfer";
 
 interface OrderItem {
   id: string;
@@ -89,13 +105,20 @@ interface ShipmentData {
 interface OrderDetail {
   id: string;
   orderNumber: string;
+  trackingCode: string | null;
   customerName: string;
   customerEmail: string;
   customerPhone: string | null;
   shippingAddress: ShippingAddress;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
+  paymentMethod: PaymentMethod;
+  paidAt: string | null;
+  paymentReference: string | null;
+  subtotalAmount: number;
+  discountAmount: number;
   totalAmount: number;
+  couponCode: string | null;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
@@ -118,7 +141,7 @@ const statusVariantMap: Record<
   returned: "destructive",
 };
 
-const paymentVariantMap: Record<
+const paymentStatusVariantMap: Record<
   PaymentStatus,
   "default" | "destructive" | "success" | "warning" | "outline"
 > = {
@@ -126,6 +149,20 @@ const paymentVariantMap: Record<
   paid: "success",
   failed: "destructive",
   refunded: "outline",
+};
+
+const paymentMethodLabels: Record<PaymentMethod, string> = {
+  cod: "COD",
+  online: "Online",
+  upi: "UPI",
+  bank_transfer: "Bank Transfer",
+};
+
+const paymentMethodVariantMap: Record<PaymentMethod, "outline" | "info" | "purple" | "secondary"> = {
+  cod: "outline",
+  online: "info",
+  upi: "purple",
+  bank_transfer: "secondary",
 };
 
 const validTransitions: Record<OrderStatus, OrderStatus[]> = {
@@ -147,6 +184,13 @@ const SHIPPING_PROVIDERS = [
   "Shiprocket",
   "Ekart Logistics",
   "Self",
+];
+
+const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
+  { value: "cod", label: "Cash on Delivery" },
+  { value: "online", label: "Online Payment" },
+  { value: "upi", label: "UPI" },
+  { value: "bank_transfer", label: "Bank Transfer" },
 ];
 
 function formatStatus(status: string): string {
@@ -189,6 +233,18 @@ export default function OrderDetailPage({
   const [statusNotes, setStatusNotes] = useState("");
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
+  // Payment dialog state
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cod");
+  const [paymentReference, setPaymentReference] = useState("");
+  const [amountReceived, setAmountReceived] = useState("");
+  const [processingPayment, setProcessingPayment] = useState(false);
+
+  // Refund dialog state
+  const [refundDialogOpen, setRefundDialogOpen] = useState(false);
+  const [refundNotes, setRefundNotes] = useState("");
+  const [processingRefund, setProcessingRefund] = useState(false);
+
   // Shipment creation state
   const [shipmentProvider, setShipmentProvider] = useState("");
   const [shipmentTrackingNumber, setShipmentTrackingNumber] = useState("");
@@ -216,6 +272,14 @@ export default function OrderDetailPage({
   useEffect(() => {
     fetchOrder();
   }, [fetchOrder]);
+
+  // Pre-fill amount when order loads or payment dialog opens
+  useEffect(() => {
+    if (order && paymentDialogOpen) {
+      setAmountReceived(String(order.totalAmount / 100));
+      setPaymentMethod(order.paymentMethod || "cod");
+    }
+  }, [order, paymentDialogOpen]);
 
   const handleStatusUpdate = async () => {
     if (!newStatus) {
@@ -245,6 +309,67 @@ export default function OrderDetailPage({
       toast.error("Failed to update status");
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  const handleMarkAsPaid = async () => {
+    if (!paymentMethod) {
+      toast.error("Please select a payment method");
+      return;
+    }
+    setProcessingPayment(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${id}/payment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "mark_paid",
+          paymentMethod,
+          paymentReference: paymentReference || undefined,
+          amountReceived: amountReceived ? Math.round(parseFloat(amountReceived) * 100) : undefined,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success("Payment recorded successfully");
+        setPaymentDialogOpen(false);
+        setPaymentReference("");
+        setAmountReceived("");
+        fetchOrder();
+      } else {
+        toast.error(json.error || "Failed to record payment");
+      }
+    } catch {
+      toast.error("Failed to record payment");
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
+
+  const handleMarkAsRefunded = async () => {
+    setProcessingRefund(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${id}/payment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "mark_refunded",
+          notes: refundNotes || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success("Order marked as refunded");
+        setRefundDialogOpen(false);
+        setRefundNotes("");
+        fetchOrder();
+      } else {
+        toast.error(json.error || "Failed to process refund");
+      }
+    } catch {
+      toast.error("Failed to process refund");
+    } finally {
+      setProcessingRefund(false);
     }
   };
 
@@ -326,6 +451,8 @@ export default function OrderDetailPage({
     "delivered",
     "returned",
   ].includes(order.status);
+  const subtotal = order.subtotalAmount || order.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const hasDiscount = order.discountAmount > 0;
 
   return (
     <div className="space-y-6 max-w-7xl">
@@ -351,14 +478,14 @@ export default function OrderDetailPage({
           {formatStatus(order.status)}
         </Badge>
         <Badge
-          variant={paymentVariantMap[order.paymentStatus]}
+          variant={paymentStatusVariantMap[order.paymentStatus]}
           className="text-sm px-3 py-1"
         >
           {formatStatus(order.paymentStatus)}
         </Badge>
       </div>
 
-      {/* Two-column layout */}
+      {/* Three-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Main content (col-span-2) */}
         <div className="lg:col-span-2 space-y-6">
@@ -378,21 +505,11 @@ export default function OrderDetailPage({
               <Table>
                 <TableHeader>
                   <TableRow className="border-border hover:bg-transparent">
-                    <TableHead className="text-muted-foreground">
-                      Product
-                    </TableHead>
-                    <TableHead className="text-muted-foreground">
-                      Variant
-                    </TableHead>
-                    <TableHead className="text-center text-muted-foreground">
-                      Qty
-                    </TableHead>
-                    <TableHead className="text-right text-muted-foreground">
-                      Unit Price
-                    </TableHead>
-                    <TableHead className="text-right text-muted-foreground">
-                      Subtotal
-                    </TableHead>
+                    <TableHead className="text-muted-foreground">Product</TableHead>
+                    <TableHead className="text-muted-foreground">Variant</TableHead>
+                    <TableHead className="text-center text-muted-foreground">Qty</TableHead>
+                    <TableHead className="text-right text-muted-foreground">Unit Price</TableHead>
+                    <TableHead className="text-right text-muted-foreground">Subtotal</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -418,11 +535,37 @@ export default function OrderDetailPage({
                       </TableCell>
                     </TableRow>
                   ))}
+
+                  {/* Footer rows */}
+                  <TableRow className="border-border border-t-2">
+                    <TableCell colSpan={4} className="text-right text-sm text-muted-foreground">
+                      Subtotal
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm text-foreground">
+                      {formatPrice(subtotal)}
+                    </TableCell>
+                  </TableRow>
+
+                  {hasDiscount && (
+                    <TableRow className="border-border">
+                      <TableCell colSpan={4} className="text-right text-sm text-muted-foreground">
+                        <span className="flex items-center justify-end gap-2">
+                          Discount
+                          {order.couponCode && (
+                            <Badge variant="purple" className="text-[10px] px-1.5 py-0">
+                              {order.couponCode}
+                            </Badge>
+                          )}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm text-emerald-400">
+                        -{formatPrice(order.discountAmount)}
+                      </TableCell>
+                    </TableRow>
+                  )}
+
                   <TableRow className="border-border bg-secondary/30">
-                    <TableCell
-                      colSpan={4}
-                      className="text-right font-semibold text-foreground"
-                    >
+                    <TableCell colSpan={4} className="text-right font-semibold text-foreground">
                       Total
                     </TableCell>
                     <TableCell className="text-right font-mono font-bold text-lg text-primary">
@@ -431,6 +574,120 @@ export default function OrderDetailPage({
                   </TableRow>
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+
+          {/* Payment Details */}
+          <Card className="bg-card rounded-xl border border-border">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-foreground">
+                <CreditCard className="h-5 w-5 text-primary" />
+                Payment Details
+              </CardTitle>
+              <CardDescription>
+                Payment information and management
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {/* Payment status + method row */}
+              <div className="flex flex-wrap items-center gap-3">
+                <Badge
+                  variant={paymentStatusVariantMap[order.paymentStatus]}
+                  className="text-sm px-4 py-1.5"
+                >
+                  {formatStatus(order.paymentStatus)}
+                </Badge>
+                <Badge
+                  variant={paymentMethodVariantMap[order.paymentMethod]}
+                  className="text-sm px-3 py-1.5"
+                >
+                  {paymentMethodLabels[order.paymentMethod] || formatStatus(order.paymentMethod)}
+                </Badge>
+              </div>
+
+              {/* Payment info grid */}
+              <div className="rounded-lg bg-secondary/50 p-4 space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <IndianRupee className="h-3.5 w-3.5" />
+                    Amount
+                  </span>
+                  <span className="font-mono font-semibold text-foreground">
+                    {formatPrice(order.totalAmount)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Receipt className="h-3.5 w-3.5" />
+                    Method
+                  </span>
+                  <span className="text-sm text-foreground">
+                    {paymentMethodLabels[order.paymentMethod] || formatStatus(order.paymentMethod)}
+                  </span>
+                </div>
+                {order.paymentStatus === "paid" && order.paidAt && (
+                  <div className="flex justify-between items-center">
+                    <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Calendar className="h-3.5 w-3.5" />
+                      Paid on
+                    </span>
+                    <span className="text-sm text-foreground">
+                      {formatDateTime(order.paidAt)}
+                    </span>
+                  </div>
+                )}
+                {order.paymentReference && (
+                  <div className="flex justify-between items-center">
+                    <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Hash className="h-3.5 w-3.5" />
+                      Reference
+                    </span>
+                    <span className="text-sm font-mono text-foreground">
+                      {order.paymentReference}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Payment actions */}
+              {(() => {
+                const isCod = order.paymentMethod === "cod";
+                const codCanPay = ["ready_to_ship", "shipped", "delivered"].includes(order.status);
+                const canMarkPaid = (order.paymentStatus === "pending" || order.paymentStatus === "failed") && (!isCod || codCanPay);
+                return null;
+              })()}
+              <div className="flex flex-wrap gap-3">
+                {(() => {
+                  const isCod = order.paymentMethod === "cod";
+                  const codCanPay = ["ready_to_ship", "shipped", "delivered"].includes(order.status);
+                  const canMarkPaid = (order.paymentStatus === "pending" || order.paymentStatus === "failed") && (!isCod || codCanPay);
+                  if (!canMarkPaid) return null;
+                  return (
+                    <Button
+                      onClick={() => setPaymentDialogOpen(true)}
+                      className="gap-2"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      Mark as Paid
+                    </Button>
+                  );
+                })()}
+                {order.paymentMethod === "cod" && order.paymentStatus === "pending" && !["ready_to_ship", "shipped", "delivered"].includes(order.status) && (
+                  <p className="text-xs text-muted-foreground italic">
+                    COD payment can be collected once order is ready to ship or delivered
+                  </p>
+                )}
+                {order.paymentStatus === "paid" && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setRefundDialogOpen(true)}
+                    className="gap-2 border-border text-muted-foreground hover:text-destructive hover:border-destructive/50"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    Mark as Refunded
+                  </Button>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -468,6 +725,10 @@ export default function OrderDetailPage({
                     )
                     .map((event, index, arr) => {
                       const isLatest = index === 0;
+                      const isPaymentEvent =
+                        event.status === "payment_received" ||
+                        event.status === "payment_refunded" ||
+                        event.title.toLowerCase().includes("payment");
                       return (
                         <div key={event.id} className="flex gap-4 pb-6 last:pb-0">
                           {/* Timeline dot and line */}
@@ -477,7 +738,9 @@ export default function OrderDetailPage({
                                 "h-3.5 w-3.5 rounded-full border-2 mt-1 shrink-0 transition-colors",
                                 isLatest
                                   ? "bg-primary border-primary shadow-[0_0_8px_rgba(129,140,248,0.4)]"
-                                  : "bg-background border-muted-foreground/30"
+                                  : isPaymentEvent
+                                    ? "bg-emerald-500/30 border-emerald-500/60"
+                                    : "bg-background border-muted-foreground/30"
                               )}
                             />
                             {index < arr.length - 1 && (
@@ -498,7 +761,13 @@ export default function OrderDetailPage({
                                 {event.title}
                               </p>
                               <Badge
-                                variant={isLatest ? "default" : "secondary"}
+                                variant={
+                                  isLatest
+                                    ? "default"
+                                    : isPaymentEvent
+                                      ? "success"
+                                      : "secondary"
+                                }
                                 className="text-xs shrink-0"
                               >
                                 {formatStatus(event.status)}
@@ -524,12 +793,12 @@ export default function OrderDetailPage({
 
         {/* Right sidebar (col-span-1) */}
         <div className="space-y-6">
-          {/* Customer Info */}
+          {/* Customer Details */}
           <Card className="bg-card rounded-xl border border-border">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-foreground text-base">
                 <User className="h-4 w-4 text-primary" />
-                Customer Info
+                Customer Details
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -538,7 +807,7 @@ export default function OrderDetailPage({
                   <User className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium text-foreground">
+                  <p className="font-semibold text-foreground">
                     {order.customerName}
                   </p>
                   <p className="text-xs text-muted-foreground">Customer</p>
@@ -561,9 +830,12 @@ export default function OrderDetailPage({
                 {order.customerPhone && (
                   <div className="flex items-center gap-2.5">
                     <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="text-sm text-foreground">
+                    <a
+                      href={`tel:${order.customerPhone}`}
+                      className="text-sm text-primary hover:underline"
+                    >
                       {order.customerPhone}
-                    </span>
+                    </a>
                   </div>
                 )}
 
@@ -579,79 +851,96 @@ export default function OrderDetailPage({
                   </div>
                 </div>
 
+                <Separator className="bg-border" />
+
                 <div className="flex items-center gap-2.5">
                   <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
                   <span className="text-sm text-muted-foreground">
                     {formatDateTime(order.createdAt)}
                   </span>
                 </div>
+
+                {order.trackingCode && (
+                  <div className="flex items-center gap-2.5">
+                    <Hash className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-sm font-mono text-foreground">
+                      {order.trackingCode}
+                    </span>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
 
           {/* Update Status */}
-          {allowedTransitions.length > 0 && (
-            <Card className="bg-card rounded-xl border border-border">
-              <CardHeader>
-                <CardTitle className="text-base text-foreground">
-                  Update Status
-                </CardTitle>
-                <CardDescription>
-                  Current:{" "}
-                  <Badge
-                    variant={statusVariantMap[order.status]}
-                    className="ml-1"
-                  >
-                    {formatStatus(order.status)}
-                  </Badge>
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-foreground">New Status</Label>
-                  <Select value={newStatus} onValueChange={setNewStatus}>
-                    <SelectTrigger className="bg-secondary border-border">
-                      <SelectValue placeholder="Select new status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {allowedTransitions.map((s) => (
-                        <SelectItem key={s} value={s}>
-                          {formatStatus(s)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-foreground">
-                    Notes{" "}
-                    <span className="text-muted-foreground font-normal">
-                      (optional)
-                    </span>
-                  </Label>
-                  <Textarea
-                    placeholder="Add a note about this status change..."
-                    value={statusNotes}
-                    onChange={(e) => setStatusNotes(e.target.value)}
-                    rows={3}
-                    className="bg-secondary border-border resize-none"
-                  />
-                </div>
-
-                <Button
-                  onClick={handleStatusUpdate}
-                  disabled={!newStatus || updatingStatus}
-                  className="w-full"
+          <Card className="bg-card rounded-xl border border-border">
+            <CardHeader>
+              <CardTitle className="text-base text-foreground">
+                Update Status
+              </CardTitle>
+              <CardDescription>
+                Current:{" "}
+                <Badge
+                  variant={statusVariantMap[order.status]}
+                  className="ml-1"
                 >
-                  {updatingStatus && (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  )}
-                  Update Status
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+                  {formatStatus(order.status)}
+                </Badge>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {allowedTransitions.length > 0 ? (
+                <>
+                  <div className="space-y-2">
+                    <Label className="text-foreground">New Status</Label>
+                    <Select value={newStatus} onValueChange={setNewStatus}>
+                      <SelectTrigger className="bg-secondary border-border">
+                        <SelectValue placeholder="Select new status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allowedTransitions.map((s) => (
+                          <SelectItem key={s} value={s}>
+                            {formatStatus(s)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-foreground">
+                      Notes{" "}
+                      <span className="text-muted-foreground font-normal">
+                        (optional)
+                      </span>
+                    </Label>
+                    <Textarea
+                      placeholder="Add a note about this status change..."
+                      value={statusNotes}
+                      onChange={(e) => setStatusNotes(e.target.value)}
+                      rows={3}
+                      className="bg-secondary border-border resize-none"
+                    />
+                  </div>
+
+                  <Button
+                    onClick={handleStatusUpdate}
+                    disabled={!newStatus || updatingStatus}
+                    className="w-full"
+                  >
+                    {updatingStatus && (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    )}
+                    Update Status
+                  </Button>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No further status transitions available for this order.
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Shipping */}
           {showShipping && (
@@ -810,8 +1099,172 @@ export default function OrderDetailPage({
               </CardContent>
             </Card>
           )}
+
+          {/* Discount Info */}
+          {order.couponCode && (
+            <Card className="bg-card rounded-xl border border-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base text-foreground">
+                  <Tag className="h-4 w-4 text-primary" />
+                  Discount Info
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Coupon Code</span>
+                  <Badge variant="purple" className="font-mono">
+                    {order.couponCode}
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Discount Amount</span>
+                  <span className="font-mono font-semibold text-emerald-400">
+                    -{formatPrice(order.discountAmount)}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
+
+      {/* Mark as Paid Dialog */}
+      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Record Payment</DialogTitle>
+            <DialogDescription>
+              Mark this order as paid. Fill in the payment details below.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label className="text-foreground">Payment Method</Label>
+              <Select
+                value={paymentMethod}
+                onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}
+              >
+                <SelectTrigger className="bg-secondary border-border">
+                  <SelectValue placeholder="Select method" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_METHODS.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-foreground">
+                Payment Reference{" "}
+                <span className="text-muted-foreground font-normal">
+                  (Transaction ID, UPI ref, receipt #)
+                </span>
+              </Label>
+              <Input
+                placeholder="e.g. TXN123456789"
+                value={paymentReference}
+                onChange={(e) => setPaymentReference(e.target.value)}
+                className="bg-secondary border-border"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-foreground">
+                Amount Received (INR)
+              </Label>
+              <div className="relative">
+                <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={amountReceived}
+                  onChange={(e) => setAmountReceived(e.target.value)}
+                  className="pl-9 bg-secondary border-border font-mono"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Order total: {formatPrice(order.totalAmount)}
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setPaymentDialogOpen(false)}
+              className="border-border"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleMarkAsPaid}
+              disabled={processingPayment}
+              className="gap-2"
+            >
+              {processingPayment && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              <CheckCircle2 className="h-4 w-4" />
+              Confirm Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mark as Refunded Dialog */}
+      <Dialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Mark as Refunded</DialogTitle>
+            <DialogDescription>
+              This will mark the payment as refunded for order{" "}
+              <span className="font-mono text-foreground">{order.orderNumber}</span>.
+              Amount: <span className="font-mono font-semibold text-foreground">{formatPrice(order.totalAmount)}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label className="text-foreground">
+                Refund Notes{" "}
+                <span className="text-muted-foreground font-normal">(optional)</span>
+              </Label>
+              <Textarea
+                placeholder="Reason for refund, refund reference number..."
+                value={refundNotes}
+                onChange={(e) => setRefundNotes(e.target.value)}
+                rows={3}
+                className="bg-secondary border-border resize-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRefundDialogOpen(false)}
+              className="border-border"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleMarkAsRefunded}
+              disabled={processingRefund}
+              className="gap-2"
+            >
+              {processingRefund && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              <RotateCcw className="h-4 w-4" />
+              Confirm Refund
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -31,6 +31,9 @@ const updateOrderSchema = z.object({
   paymentStatus: z
     .enum(["pending", "paid", "failed", "refunded"])
     .optional(),
+  paymentMethod: z
+    .enum(["cod", "online", "upi", "bank_transfer"])
+    .optional(),
   notes: z.string().optional().nullable(),
 });
 
@@ -141,11 +144,12 @@ export async function PUT(
       );
     }
 
-    const { status, paymentStatus, notes } = parsed.data;
+    const { status, paymentStatus, paymentMethod, notes } = parsed.data;
 
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
     if (status !== undefined) updateData.status = status;
     if (paymentStatus !== undefined) updateData.paymentStatus = paymentStatus;
+    if (paymentMethod !== undefined) updateData.paymentMethod = paymentMethod;
     if (notes !== undefined) updateData.notes = notes;
 
     const result = await db.transaction(async (tx) => {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq, like, and, or, sql, desc, count } from "drizzle-orm";
+import { eq, like, and, or, sql, desc, count, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { orders, orderItems } from "@/lib/db/schema";
 import { getAdminFromCookie } from "@/lib/auth/admin";
@@ -25,7 +25,12 @@ export async function GET(request: NextRequest) {
     // Build where conditions
     const conditions = [];
     if (status) {
-      conditions.push(eq(orders.status, status as typeof orders.status.enumValues[number]));
+      const statuses = status.split(",").map((s) => s.trim()) as (typeof orders.status.enumValues[number])[];
+      if (statuses.length === 1) {
+        conditions.push(eq(orders.status, statuses[0]));
+      } else {
+        conditions.push(inArray(orders.status, statuses));
+      }
     }
     if (paymentStatus) {
       conditions.push(eq(orders.paymentStatus, paymentStatus as typeof orders.paymentStatus.enumValues[number]));
