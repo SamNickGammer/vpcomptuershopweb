@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Cpu, Mail, Phone, MapPin } from "lucide-react";
+import Image from "next/image";
+import { Mail, Phone, MapPin } from "lucide-react";
 
 const QUICK_LINKS = [
   { href: "/", label: "Home" },
@@ -23,9 +24,14 @@ export default function Footer() {
           {/* Brand */}
           <div className="flex flex-col gap-4">
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-                <Cpu className="h-5 w-5 text-primary" />
-              </div>
+              <Image
+                src="/logo/LogoSmall.svg"
+                alt="V&P Computer"
+                width={36}
+                height={36}
+                className="h-9 w-auto"
+                unoptimized
+              />
               <span className="text-lg font-bold tracking-tight text-foreground">
                 V&P <span className="text-primary">Computer</span>
               </span>

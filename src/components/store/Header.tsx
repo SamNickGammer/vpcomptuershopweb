@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 import {
-  Cpu,
   ShoppingBag,
   UserCircle,
   Menu,
@@ -73,12 +73,18 @@ export default function Header() {
       <header className="sticky top-0 z-40 h-16 border-b border-border bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/20">
-              <Cpu className="h-5 w-5 text-primary" />
-            </div>
-            <span className="text-lg font-bold tracking-tight text-foreground">
-              V&P <span className="hidden text-primary sm:inline">Computer</span>
+          <Link href="/" className="flex items-center gap-2 group">
+            <Image
+              src="/logo/LogoSmall.svg"
+              alt="V&P Computer"
+              width={36}
+              height={36}
+              className="h-9 w-auto"
+              priority
+              unoptimized
+            />
+            <span className="text-lg font-bold tracking-tight text-foreground hidden sm:inline">
+              V&P <span className="text-primary">Computer</span>
             </span>
           </Link>
 

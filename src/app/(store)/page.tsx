@@ -17,11 +17,10 @@ import {
   Mail,
   X,
   ChevronRight,
-  Cpu,
-  MemoryStick,
-  HardDrive,
-  Monitor,
-  Zap,
+  Percent,
+  BadgeCheck,
+  Timer,
+  Laptop,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -448,180 +447,186 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen">
-      {/* ── Section 1: Hero with Search ─────────────────────────────────────── */}
-      <section className="relative py-24 md:py-36 lg:py-44 overflow-x-clip">
-        {/* ── Layered background ── */}
-        {/* Base gradient */}
-        <div className="absolute inset-0 pointer-events-none" style={{
-          background: "radial-gradient(ellipse 100% 80% at 50% -30%, rgba(129,140,248,0.12) 0%, rgba(99,102,241,0.06) 30%, transparent 70%)"
-        }} />
-        {/* Secondary warm accent */}
-        <div className="absolute inset-0 pointer-events-none" style={{
-          background: "radial-gradient(ellipse 60% 50% at 80% 20%, rgba(168,85,247,0.06) 0%, transparent 60%)"
-        }} />
-        <div className="absolute inset-0 pointer-events-none" style={{
-          background: "radial-gradient(ellipse 50% 40% at 15% 60%, rgba(56,189,248,0.04) 0%, transparent 50%)"
-        }} />
-
-        {/* ── Circuit-board grid ── */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ animation: "hero-grid-reveal 1.5s ease-out 0.2s both" }}>
-          <svg className="absolute inset-0 w-full h-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <pattern id="hero-grid" width="60" height="60" patternUnits="userSpaceOnUse">
-                <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#818cf8" strokeWidth="0.5" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#hero-grid)" />
-          </svg>
-          {/* Horizontal beam lines */}
-          <div className="absolute left-0 right-0 top-[30%] h-px bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent" />
-          <div className="absolute left-0 right-0 top-[70%] h-px bg-gradient-to-r from-transparent via-purple-500/8 to-transparent" />
-          <div className="absolute top-0 bottom-0 left-[20%] w-px bg-gradient-to-b from-transparent via-indigo-500/6 to-transparent" />
-          <div className="absolute top-0 bottom-0 right-[25%] w-px bg-gradient-to-b from-transparent via-sky-500/6 to-transparent" />
+      {/* ── Promo Ticker ──────────────────────────────────────────────────────── */}
+      <div className="bg-primary/10 border-b border-primary/20 overflow-hidden">
+        <div className="ticker-scroll flex items-center gap-12 whitespace-nowrap py-2 w-max">
+          {[...Array(2)].map((_, rep) => (
+            <div key={rep} className="flex items-center gap-12">
+              <span className="flex items-center gap-2 text-sm font-medium text-primary"><Percent className="h-3.5 w-3.5" /> Up to 40% Off on Refurbished Laptops</span>
+              <span className="text-primary/30">|</span>
+              <span className="flex items-center gap-2 text-sm font-medium text-primary"><Truck className="h-3.5 w-3.5" /> Free Delivery Across Patna</span>
+              <span className="text-primary/30">|</span>
+              <span className="flex items-center gap-2 text-sm font-medium text-primary"><BadgeCheck className="h-3.5 w-3.5" /> All Products Quality Tested</span>
+              <span className="text-primary/30">|</span>
+              <span className="flex items-center gap-2 text-sm font-medium text-primary"><Timer className="h-3.5 w-3.5" /> Same Day Dispatch on Orders Before 2PM</span>
+              <span className="text-primary/30">|</span>
+            </div>
+          ))}
         </div>
+      </div>
 
-        {/* ── Orbiting particles ── */}
-        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-          {/* Ring 1 */}
-          <div className="absolute w-[500px] h-[500px] md:w-[700px] md:h-[700px] rounded-full border border-indigo-500/[0.04]" />
-          <div className="absolute w-[500px] h-[500px] md:w-[700px] md:h-[700px] hero-orbit-particle" style={{ "--orbit-r": "250px", "--orbit-dur": "30s" } as React.CSSProperties}>
-            <div className="w-2 h-2 rounded-full bg-indigo-400/40 shadow-[0_0_12px_rgba(129,140,248,0.4)]" />
-          </div>
-          <div className="absolute w-[500px] h-[500px] md:w-[700px] md:h-[700px] hero-orbit-particle" style={{ "--orbit-r": "250px", "--orbit-dur": "30s", animationDelay: "-15s" } as React.CSSProperties}>
-            <div className="w-1.5 h-1.5 rounded-full bg-purple-400/30 shadow-[0_0_8px_rgba(168,85,247,0.3)]" />
-          </div>
-          {/* Ring 2 */}
-          <div className="absolute w-[350px] h-[350px] md:w-[480px] md:h-[480px] rounded-full border border-purple-500/[0.03]" />
-          <div className="absolute w-[350px] h-[350px] md:w-[480px] md:h-[480px] hero-orbit-particle" style={{ "--orbit-r": "175px", "--orbit-dur": "22s", animationDirection: "reverse" } as React.CSSProperties}>
-            <div className="w-1.5 h-1.5 rounded-full bg-sky-400/30 shadow-[0_0_8px_rgba(56,189,248,0.3)]" />
-          </div>
-        </div>
+      {/* ── Section 1: Hero ────────────────────────────────────────────────────── */}
+      <section className="relative overflow-x-clip">
+        {/* Warm gradient background */}
+        <div className="absolute inset-0 pointer-events-none" style={{
+          background: "radial-gradient(ellipse 70% 60% at 30% 20%, rgba(35,65,131,0.15) 0%, transparent 60%)"
+        }} />
+        <div className="absolute inset-0 pointer-events-none" style={{
+          background: "radial-gradient(ellipse 50% 50% at 80% 70%, rgba(239,152,34,0.06) 0%, transparent 50%)"
+        }} />
 
-        {/* ── Floating hardware icons ── */}
-        <div className="absolute inset-0 pointer-events-none hidden md:block">
-          <div className="absolute top-[15%] left-[8%] hero-float" style={{ animationDelay: "0s", animationDuration: "7s" }}>
-            <div className="p-3 rounded-xl bg-indigo-500/[0.06] border border-indigo-500/[0.08] backdrop-blur-sm">
-              <Cpu className="h-6 w-6 text-indigo-400/40" />
-            </div>
-          </div>
-          <div className="absolute top-[20%] right-[10%] hero-float" style={{ animationDelay: "-2s", animationDuration: "8s" }}>
-            <div className="p-3 rounded-xl bg-purple-500/[0.06] border border-purple-500/[0.08] backdrop-blur-sm">
-              <MemoryStick className="h-6 w-6 text-purple-400/40" />
-            </div>
-          </div>
-          <div className="absolute bottom-[25%] left-[12%] hero-float" style={{ animationDelay: "-4s", animationDuration: "9s" }}>
-            <div className="p-3 rounded-xl bg-sky-500/[0.06] border border-sky-500/[0.08] backdrop-blur-sm">
-              <HardDrive className="h-6 w-6 text-sky-400/40" />
-            </div>
-          </div>
-          <div className="absolute bottom-[20%] right-[8%] hero-float" style={{ animationDelay: "-1s", animationDuration: "6s" }}>
-            <div className="p-3 rounded-xl bg-emerald-500/[0.06] border border-emerald-500/[0.08] backdrop-blur-sm">
-              <Monitor className="h-6 w-6 text-emerald-400/40" />
-            </div>
-          </div>
-          <div className="absolute top-[55%] right-[20%] hero-float" style={{ animationDelay: "-3s", animationDuration: "7.5s" }}>
-            <div className="p-2.5 rounded-lg bg-amber-500/[0.05] border border-amber-500/[0.08] backdrop-blur-sm">
-              <Zap className="h-5 w-5 text-amber-400/30" />
-            </div>
-          </div>
-        </div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
+          <div className="grid lg:grid-cols-5 gap-6 lg:gap-8 items-start">
 
-        {/* ── Content ── */}
-        <div className="relative max-w-4xl mx-auto px-4 text-center">
-          {/* Badge */}
-          <div className="hero-stagger-1">
-            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/[0.06] backdrop-blur-sm px-5 py-2 text-xs font-medium text-indigo-300/90 mb-8">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-60" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-400" />
-              </span>
-              Patna&apos;s Trusted Computer Hardware Shop
-            </div>
-          </div>
+            {/* ── Left: Main promo + search (3 cols) ── */}
+            <div className="lg:col-span-3 space-y-6">
+              {/* Main Promo Banner */}
+              <div className="hero-stagger-1 relative rounded-2xl overflow-hidden bg-gradient-to-br from-[#1a2a52] via-[#162040] to-[#0e1019] border border-[#234183]/30 p-8 md:p-10">
+                {/* Decorative corner accent */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-primary/20 to-transparent rounded-bl-full" />
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-[#234183]/20 to-transparent rounded-tr-full" />
 
-          {/* Heading */}
-          <h1 className="hero-stagger-2 text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 leading-[1.1]">
-            <span className="hero-shimmer-text bg-clip-text text-transparent" style={{
-              backgroundImage: "linear-gradient(100deg, #e2e8f0 0%, #f8fafc 20%, #818cf8 40%, #f8fafc 60%, #e2e8f0 80%, #818cf8 100%)",
-              backgroundSize: "200% auto",
-            }}>
-              Find Your Perfect
-            </span>
-            <br />
-            <span className="bg-clip-text text-transparent" style={{
-              backgroundImage: "linear-gradient(to right, #fafafa, #a1a1aa)"
-            }}>
-              Computer Hardware
-            </span>
-          </h1>
-
-          {/* Subtitle */}
-          <p className="hero-stagger-3 text-muted-foreground text-base md:text-lg lg:text-xl max-w-2xl mx-auto mb-12 leading-relaxed">
-            Laptops, Motherboards, Processors, RAM &amp; More
-            <span className="hidden sm:inline"> &mdash; Quality Hardware at Best Prices in Bihar</span>
-          </p>
-
-          {/* Search Bar */}
-          <div ref={searchRef} className="hero-stagger-4 relative max-w-2xl mx-auto">
-            <div className="relative hero-search-glow rounded-2xl">
-              {/* Animated border gradient */}
-              <div className="absolute -inset-px rounded-2xl bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-sky-500/20 opacity-60" />
-              <div className="relative">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-indigo-400/60" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => handleSearchInput(e.target.value)}
-                  onFocus={() => searchQuery.length >= 2 && setShowDropdown(true)}
-                  placeholder="Search laptops, processors, RAM, motherboards..."
-                  className="w-full h-14 md:h-16 pl-13 pr-12 rounded-2xl bg-[#0c0c0e]/90 backdrop-blur-xl border-0 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-0 transition-all text-base"
-                  style={{ paddingLeft: "3.2rem" }}
-                />
-                {searchQuery ? (
-                  <button
-                    onClick={() => {
-                      setSearchQuery("");
-                      setSearchResults(null);
-                      setShowDropdown(false);
-                    }}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                ) : (
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1.5 text-[11px] text-muted-foreground/40">
-                    <kbd className="px-1.5 py-0.5 rounded border border-border/50 bg-secondary/50 font-mono">/</kbd>
-                    <span>to search</span>
+                <div className="relative">
+                  <div className="inline-flex items-center gap-1.5 bg-primary/20 rounded-full px-3 py-1 text-xs font-bold text-primary uppercase tracking-wider mb-4">
+                    <Percent className="h-3 w-3" /> Limited Time Offer
                   </div>
+                  <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.15] mb-4">
+                    Refurbished Laptops
+                    <br />
+                    <span className="text-primary">Starting ₹12,999</span>
+                  </h1>
+                  <p className="text-muted-foreground text-sm md:text-base max-w-md mb-6 leading-relaxed">
+                    Dell, HP, Lenovo &amp; more — professionally restored with 6-month warranty. Save big on quality hardware.
+                  </p>
+                  <Link
+                    href="/products?condition=refurbished"
+                    className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-3 rounded-xl transition-colors shadow-lg shadow-primary/20"
+                  >
+                    Shop Now
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </div>
+              </div>
+
+              {/* Search Bar */}
+              <div ref={searchRef} className="hero-stagger-2 relative">
+                <div className="relative search-glow rounded-xl">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/50" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => handleSearchInput(e.target.value)}
+                    onFocus={() => searchQuery.length >= 2 && setShowDropdown(true)}
+                    placeholder="Search laptops, processors, RAM, motherboards..."
+                    className="w-full h-13 pl-12 pr-12 rounded-xl bg-secondary border border-border text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all text-sm"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => { setSearchQuery(""); setSearchResults(null); setShowDropdown(false); }}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+
+                {showDropdown && (
+                  <SearchDropdown
+                    results={searchResults}
+                    loading={searchLoading}
+                    query={searchQuery}
+                    onClose={() => setShowDropdown(false)}
+                  />
                 )}
               </div>
+
+              {/* Popular searches */}
+              {!showDropdown && (
+                <div className="hero-stagger-3 flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground/50">Trending:</span>
+                  {["Dell Latitude", "i5 Processor", "8GB RAM", "256GB SSD", "Motherboard"].map((tag) => (
+                    <Link
+                      key={tag}
+                      href={`/products?search=${encodeURIComponent(tag)}`}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground bg-secondary border border-border hover:border-primary/40 hover:text-primary transition-all"
+                    >
+                      {tag}
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {showDropdown && (
-              <SearchDropdown
-                results={searchResults}
-                loading={searchLoading}
-                query={searchQuery}
-                onClose={() => setShowDropdown(false)}
-              />
-            )}
+            {/* ── Right: Deal cards (2 cols) ── */}
+            <div className="lg:col-span-2 grid grid-cols-2 lg:grid-cols-1 gap-4">
+              {/* Deal Card 1 */}
+              <Link href="/products?condition=new" className="hero-stagger-3 group block">
+                <div className="rounded-2xl border border-border bg-card p-5 hover:border-primary/40 transition-all h-full">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="p-2 rounded-lg bg-emerald-500/10">
+                      <Laptop className="h-4 w-4 text-emerald-400" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">New Arrivals</span>
+                  </div>
+                  <h3 className="font-bold text-foreground mb-1 group-hover:text-primary transition-colors">Brand New Laptops</h3>
+                  <p className="text-xs text-muted-foreground mb-3">ASUS, HP, Lenovo, Dell</p>
+                  <p className="text-lg font-bold text-primary">From ₹29,999</p>
+                </div>
+              </Link>
+
+              {/* Deal Card 2 */}
+              <Link href="/products?search=processor" className="hero-stagger-4 group block">
+                <div className="rounded-2xl border border-border bg-card p-5 hover:border-primary/40 transition-all h-full">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="p-2 rounded-lg bg-blue-500/10">
+                      <BadgeCheck className="h-4 w-4 text-blue-400" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">Components</span>
+                  </div>
+                  <h3 className="font-bold text-foreground mb-1 group-hover:text-primary transition-colors">Processors & RAM</h3>
+                  <p className="text-xs text-muted-foreground mb-3">Intel & AMD, DDR4</p>
+                  <p className="text-lg font-bold text-primary">From ₹3,499</p>
+                </div>
+              </Link>
+
+              {/* Deal Card 3 */}
+              <Link href="/products?search=motherboard" className="hero-stagger-5 group block col-span-2 lg:col-span-1">
+                <div className="rounded-2xl border border-border bg-card p-5 hover:border-primary/40 transition-all">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="p-2 rounded-lg bg-primary/10">
+                          <ShieldCheck className="h-4 w-4 text-primary" />
+                        </div>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Bestsellers</span>
+                      </div>
+                      <h3 className="font-bold text-foreground group-hover:text-primary transition-colors">Motherboards & Storage</h3>
+                      <p className="text-xs text-muted-foreground mt-1">Gigabyte, ASUS, Samsung, WD</p>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                  </div>
+                </div>
+              </Link>
+            </div>
           </div>
 
-          {/* Quick category pills — below search, hidden when dropdown is open */}
-          {!showDropdown && (
-            <div className="hero-stagger-4 flex flex-wrap items-center justify-center gap-2 mt-6">
-              <span className="text-xs text-muted-foreground/40">Popular:</span>
-              {["Laptops", "Processors", "RAM", "SSD", "Motherboards"].map((tag) => (
-                <Link
-                  key={tag}
-                  href={`/products?search=${encodeURIComponent(tag)}`}
-                  className="px-3.5 py-1.5 rounded-full text-xs font-medium text-muted-foreground/60 bg-white/[0.03] border border-white/[0.05] hover:border-indigo-500/30 hover:text-indigo-300 hover:bg-indigo-500/[0.06] transition-all duration-300"
-                >
-                  {tag}
-                </Link>
-              ))}
-            </div>
-          )}
+          {/* Trust Strip */}
+          <div className="hero-stagger-5 mt-8 grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { icon: ShieldCheck, text: "Quality Tested", sub: "Every product inspected" },
+              { icon: Truck, text: "Fast Delivery", sub: "Across Bihar" },
+              { icon: IndianRupee, text: "Best Prices", sub: "Guaranteed lowest" },
+              { icon: Headphones, text: "Expert Support", sub: "Call or WhatsApp" },
+            ].map((item) => (
+              <div key={item.text} className="flex items-center gap-3 rounded-xl bg-secondary/50 border border-border/50 px-4 py-3">
+                <item.icon className="h-5 w-5 text-primary flex-shrink-0" />
+                <div>
+                  <p className="text-xs font-semibold text-foreground">{item.text}</p>
+                  <p className="text-[10px] text-muted-foreground">{item.sub}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
