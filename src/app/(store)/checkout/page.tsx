@@ -18,11 +18,25 @@ import {
   Truck,
   Smartphone,
   Banknote,
+  Star,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
 import { formatPrice, cn } from "@/lib/utils/helpers";
+
+type CustomerAddress = {
+  id: string;
+  label: string;
+  name: string;
+  phone: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  state: string;
+  pincode: string;
+  isDefault: boolean;
+};
 
 type CouponResult = {
   valid: boolean;
@@ -46,6 +60,12 @@ export default function CheckoutPage() {
   const [state, setState] = useState("Bihar");
   const [pincode, setPincode] = useState("");
 
+  // Saved addresses
+  const [savedAddresses, setSavedAddresses] = useState<CustomerAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | "new">("new");
+  const [saveAddress, setSaveAddress] = useState(true);
+  const [addressesLoaded, setAddressesLoaded] = useState(false);
+
   // Payment
   const [paymentMethod, setPaymentMethod] = useState<"cod" | "online" | "upi">("cod");
 
@@ -64,6 +84,54 @@ export default function CheckoutPage() {
       setEmail(user.email || "");
     }
   }, [user]);
+
+  // Fetch saved addresses
+  useEffect(() => {
+    if (user) {
+      fetch("/api/auth/customer/addresses")
+        .then((res) => res.ok ? res.json() : null)
+        .then((data) => {
+          if (data?.data && data.data.length > 0) {
+            setSavedAddresses(data.data);
+            const defaultAddr = data.data.find((a: CustomerAddress) => a.isDefault) || data.data[0];
+            setSelectedAddressId(defaultAddr.id);
+            fillFromAddress(defaultAddr);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setAddressesLoaded(true));
+    }
+  }, [user]);
+
+  function fillFromAddress(addr: CustomerAddress) {
+    setName(addr.name);
+    setPhone(addr.phone);
+    setLine1(addr.line1);
+    setLine2(addr.line2 || "");
+    setCity(addr.city);
+    setState(addr.state);
+    setPincode(addr.pincode);
+  }
+
+  function handleAddressSelect(id: string | "new") {
+    setSelectedAddressId(id);
+    if (id === "new") {
+      setName(user?.name || "");
+      setPhone("");
+      setLine1("");
+      setLine2("");
+      setCity("");
+      setState("Bihar");
+      setPincode("");
+      setSaveAddress(true);
+    } else {
+      const addr = savedAddresses.find((a) => a.id === id);
+      if (addr) {
+        fillFromAddress(addr);
+        setSaveAddress(false);
+      }
+    }
+  }
 
   // Auth redirect
   useEffect(() => {
@@ -152,6 +220,28 @@ export default function CheckoutPage() {
       });
       const data = await res.json();
       if (res.ok && data.data?.orderNumber) {
+        // Save new address if checkbox is checked
+        if (selectedAddressId === "new" && saveAddress && line1.trim()) {
+          try {
+            await fetch("/api/auth/customer/addresses", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                label: "Home",
+                name: name.trim(),
+                phone: phone.trim(),
+                line1: line1.trim(),
+                line2: line2.trim() || undefined,
+                city: city.trim(),
+                state: state.trim(),
+                pincode: pincode.trim(),
+                isDefault: savedAddresses.length === 0,
+              }),
+            });
+          } catch {
+            // Non-critical, don't block order success
+          }
+        }
         clearCart();
         toast.success("Order placed successfully!");
         router.push(`/track-order?orderNumber=${data.data.orderNumber}`);
@@ -239,6 +329,94 @@ export default function CheckoutPage() {
               </div>
               <h2 className="text-xl font-semibold text-gray-900">Shipping Information</h2>
             </div>
+
+            {/* Saved Address Selection */}
+            {savedAddresses.length > 0 && (
+              <div className="mb-6 space-y-3">
+                <p className="text-sm font-medium text-gray-700 mb-2">Select Address</p>
+                {savedAddresses.map((addr) => (
+                  <label
+                    key={addr.id}
+                    className={cn(
+                      "flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-all",
+                      selectedAddressId === addr.id
+                        ? "border-amber-500 bg-amber-50"
+                        : "border-gray-200 bg-gray-50 hover:border-gray-300"
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="savedAddress"
+                      value={addr.id}
+                      checked={selectedAddressId === addr.id}
+                      onChange={() => handleAddressSelect(addr.id)}
+                      className="sr-only"
+                    />
+                    <div
+                      className={cn(
+                        "mt-0.5 h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors",
+                        selectedAddressId === addr.id ? "border-amber-600" : "border-gray-300"
+                      )}
+                    >
+                      {selectedAddressId === addr.id && (
+                        <div className="h-2.5 w-2.5 rounded-full bg-amber-600" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-200 text-gray-700">
+                          {addr.label}
+                        </span>
+                        {addr.isDefault && (
+                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 inline-flex items-center gap-1">
+                            <Star className="h-3 w-3" />
+                            Default
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm font-medium text-gray-900">{addr.name}</p>
+                      <p className="text-xs text-gray-500">{addr.phone}</p>
+                      <p className="text-xs text-gray-500">
+                        {addr.line1}{addr.line2 ? `, ${addr.line2}` : ""}, {addr.city}, {addr.state} - {addr.pincode}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+
+                {/* Use New Address option */}
+                <label
+                  className={cn(
+                    "flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all",
+                    selectedAddressId === "new"
+                      ? "border-amber-500 bg-amber-50"
+                      : "border-gray-200 bg-gray-50 hover:border-gray-300"
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="savedAddress"
+                    value="new"
+                    checked={selectedAddressId === "new"}
+                    onChange={() => handleAddressSelect("new")}
+                    className="sr-only"
+                  />
+                  <div
+                    className={cn(
+                      "h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors",
+                      selectedAddressId === "new" ? "border-amber-600" : "border-gray-300"
+                    )}
+                  >
+                    {selectedAddressId === "new" && (
+                      <div className="h-2.5 w-2.5 rounded-full bg-amber-600" />
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm font-medium text-gray-900">Use a New Address</span>
+                  </div>
+                </label>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -338,6 +516,19 @@ export default function CheckoutPage() {
                 />
               </div>
             </div>
+
+            {/* Save address checkbox */}
+            {selectedAddressId === "new" && (
+              <label className="flex items-center gap-3 mt-4 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={saveAddress}
+                  onChange={(e) => setSaveAddress(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                />
+                <span className="text-sm text-gray-600">Save this address for future orders</span>
+              </label>
+            )}
           </div>
 
           {/* Payment Method */}

@@ -13,7 +13,7 @@ const registerSchema = z.object({
   name: z.string().min(1, "Name is required").max(150),
   email: z.string().email("Invalid email format"),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  phone: z.string().max(20).optional(),
+  phone: z.string().min(10, "Phone number is required").max(20),
 });
 
 export async function POST(req: NextRequest) {
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
         name,
         email,
         passwordHash,
-        phone: phone ?? null,
+        phone,
       })
       .returning({ id: customers.id, name: customers.name, email: customers.email });
 

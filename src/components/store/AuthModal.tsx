@@ -103,10 +103,16 @@ export default function AuthModal() {
     if (
       !regName.trim() ||
       !regEmail.trim() ||
+      !regPhone.trim() ||
       !regPassword.trim() ||
       !regConfirmPassword.trim()
     ) {
       setError("Please fill in all required fields.");
+      return;
+    }
+
+    if (regPhone.trim().length < 10) {
+      setError("Phone number must be at least 10 characters.");
       return;
     }
 
@@ -126,7 +132,7 @@ export default function AuthModal() {
         regName.trim(),
         regEmail.trim(),
         regPassword,
-        regPhone.trim() || undefined
+        regPhone.trim()
       );
       closeAuthModal();
       toast.success(`Welcome, ${regName.trim()}!`, {
@@ -311,8 +317,7 @@ export default function AuthModal() {
 
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-500">
-                Phone{" "}
-                <span className="text-gray-400">(optional)</span>
+                Phone <span className="text-red-500">*</span>
               </label>
               <input
                 type="tel"

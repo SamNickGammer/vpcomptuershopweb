@@ -15,9 +15,27 @@ import {
   Lock,
   LogOut,
   ChevronRight,
+  MapPin,
+  Plus,
+  Trash2,
+  Star,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { formatPrice, cn } from "@/lib/utils/helpers";
+
+type CustomerAddress = {
+  id: string;
+  label: string;
+  name: string;
+  phone: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  state: string;
+  pincode: string;
+  isDefault: boolean;
+};
 
 type OrderItemSummary = {
   productName: string;
@@ -75,6 +93,20 @@ export default function AccountPage() {
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
 
+  // Addresses
+  const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
+  const [addressesLoading, setAddressesLoading] = useState(true);
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [addressSubmitting, setAddressSubmitting] = useState(false);
+  const [addrLabel, setAddrLabel] = useState("Home");
+  const [addrName, setAddrName] = useState("");
+  const [addrPhone, setAddrPhone] = useState("");
+  const [addrLine1, setAddrLine1] = useState("");
+  const [addrLine2, setAddrLine2] = useState("");
+  const [addrCity, setAddrCity] = useState("");
+  const [addrState, setAddrState] = useState("Bihar");
+  const [addrPincode, setAddrPincode] = useState("");
+
   useEffect(() => {
     if (!authLoading && !user) {
       openAuthModal();
@@ -84,6 +116,7 @@ export default function AccountPage() {
   useEffect(() => {
     if (user) {
       fetchOrders();
+      fetchAddresses();
     }
   }, [user]);
 
@@ -99,6 +132,107 @@ export default function AccountPage() {
       // Silently fail
     } finally {
       setOrdersLoading(false);
+    }
+  }
+
+  async function fetchAddresses() {
+    setAddressesLoading(true);
+    try {
+      const res = await fetch("/api/auth/customer/addresses");
+      if (res.ok) {
+        const data = await res.json();
+        setAddresses(data.data || []);
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setAddressesLoading(false);
+    }
+  }
+
+  function resetAddressForm() {
+    setAddrLabel("Home");
+    setAddrName("");
+    setAddrPhone("");
+    setAddrLine1("");
+    setAddrLine2("");
+    setAddrCity("");
+    setAddrState("Bihar");
+    setAddrPincode("");
+    setShowAddressForm(false);
+  }
+
+  async function handleAddAddress(e: React.FormEvent) {
+    e.preventDefault();
+    if (!addrName.trim() || !addrPhone.trim() || !addrLine1.trim() || !addrCity.trim() || !addrPincode.trim()) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+    setAddressSubmitting(true);
+    try {
+      const res = await fetch("/api/auth/customer/addresses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label: addrLabel,
+          name: addrName.trim(),
+          phone: addrPhone.trim(),
+          line1: addrLine1.trim(),
+          line2: addrLine2.trim() || undefined,
+          city: addrCity.trim(),
+          state: addrState.trim(),
+          pincode: addrPincode.trim(),
+          isDefault: addresses.length === 0,
+        }),
+      });
+      if (res.ok) {
+        toast.success("Address added");
+        resetAddressForm();
+        fetchAddresses();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Failed to add address");
+      }
+    } catch {
+      toast.error("Failed to add address");
+    } finally {
+      setAddressSubmitting(false);
+    }
+  }
+
+  async function handleSetDefaultAddress(addressId: string) {
+    try {
+      const res = await fetch("/api/auth/customer/addresses", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ addressId, isDefault: true }),
+      });
+      if (res.ok) {
+        toast.success("Default address updated");
+        fetchAddresses();
+      } else {
+        toast.error("Failed to update address");
+      }
+    } catch {
+      toast.error("Failed to update address");
+    }
+  }
+
+  async function handleDeleteAddress(addressId: string) {
+    try {
+      const res = await fetch("/api/auth/customer/addresses", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ addressId }),
+      });
+      if (res.ok) {
+        toast.success("Address deleted");
+        fetchAddresses();
+      } else {
+        toast.error("Failed to delete address");
+      }
+    } catch {
+      toast.error("Failed to delete address");
     }
   }
 
@@ -314,6 +448,219 @@ export default function AccountPage() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Saved Addresses */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-50 rounded-lg">
+                  <MapPin className="h-5 w-5 text-amber-600" />
+                </div>
+                <h2 className="text-xl font-semibold text-gray-900">Saved Addresses</h2>
+              </div>
+              {!showAddressForm && (
+                <button
+                  onClick={() => setShowAddressForm(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add New Address
+                </button>
+              )}
+            </div>
+
+            {addressesLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-amber-600" />
+              </div>
+            ) : (
+              <>
+                {addresses.length === 0 && !showAddressForm && (
+                  <p className="text-gray-500 text-sm text-center py-6">
+                    No saved addresses yet. Add one for faster checkout.
+                  </p>
+                )}
+
+                <div className="space-y-3">
+                  {addresses.map((addr) => (
+                    <div
+                      key={addr.id}
+                      className={cn(
+                        "p-4 rounded-lg border transition-colors",
+                        addr.isDefault
+                          ? "border-amber-200 bg-amber-50/50"
+                          : "border-gray-200 bg-gray-50"
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-200 text-gray-700">
+                              {addr.label}
+                            </span>
+                            {addr.isDefault && (
+                              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 inline-flex items-center gap-1">
+                                <Star className="h-3 w-3" />
+                                Default
+                              </span>
+                            )}
+                          </div>
+                          <p className="font-medium text-gray-900">{addr.name}</p>
+                          <p className="text-sm text-gray-500">{addr.phone}</p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            {addr.line1}
+                            {addr.line2 ? `, ${addr.line2}` : ""}
+                            <br />
+                            {addr.city}, {addr.state} - {addr.pincode}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {!addr.isDefault && (
+                            <button
+                              onClick={() => handleSetDefaultAddress(addr.id)}
+                              className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors"
+                            >
+                              Set as Default
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDeleteAddress(addr.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add Address Form */}
+                {showAddressForm && (
+                  <form onSubmit={handleAddAddress} className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50 space-y-4">
+                    <h3 className="font-medium text-gray-900">New Address</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500 mb-1.5">
+                          Label <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={addrLabel}
+                          onChange={(e) => setAddrLabel(e.target.value)}
+                          className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/30 transition-colors"
+                        >
+                          <option value="Home">Home</option>
+                          <option value="Office">Office</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500 mb-1.5">
+                          Full Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={addrName}
+                          onChange={(e) => setAddrName(e.target.value)}
+                          placeholder="Recipient name"
+                          className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/30 transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500 mb-1.5">
+                          Phone <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="tel"
+                          value={addrPhone}
+                          onChange={(e) => setAddrPhone(e.target.value)}
+                          placeholder="+91 XXXXXXXXXX"
+                          className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/30 transition-colors"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-500 mb-1.5">
+                          Address Line 1 <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={addrLine1}
+                          onChange={(e) => setAddrLine1(e.target.value)}
+                          placeholder="House/Flat no., Street name"
+                          className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/30 transition-colors"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-500 mb-1.5">
+                          Address Line 2
+                        </label>
+                        <input
+                          type="text"
+                          value={addrLine2}
+                          onChange={(e) => setAddrLine2(e.target.value)}
+                          placeholder="Landmark, Area (optional)"
+                          className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/30 transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500 mb-1.5">
+                          City <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={addrCity}
+                          onChange={(e) => setAddrCity(e.target.value)}
+                          placeholder="City"
+                          className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/30 transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500 mb-1.5">
+                          State <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={addrState}
+                          onChange={(e) => setAddrState(e.target.value)}
+                          className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/30 transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500 mb-1.5">
+                          Pincode <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={addrPincode}
+                          onChange={(e) => setAddrPincode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                          placeholder="6-digit pincode"
+                          maxLength={6}
+                          className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/30 transition-colors"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 pt-2">
+                      <button
+                        type="submit"
+                        disabled={addressSubmitting}
+                        className="px-5 py-2.5 bg-[#d97706] text-white rounded-lg text-sm font-medium hover:bg-[#b45309] transition-colors disabled:opacity-50 flex items-center gap-2"
+                      >
+                        {addressSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                        Save Address
+                      </button>
+                      <button
+                        type="button"
+                        onClick={resetAddressForm}
+                        className="px-5 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </>
+            )}
           </div>
 
           {/* Actions */}
