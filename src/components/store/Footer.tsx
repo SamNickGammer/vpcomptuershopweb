@@ -58,7 +58,7 @@ export default function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-sm text-gray-400 transition-colors hover:text-[#EF9822]"
+                    className="text-sm text-gray-400 transition-colors hover:text-amber-600"
                   >
                     {link.label}
                   </Link>
@@ -77,7 +77,7 @@ export default function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-sm text-gray-400 transition-colors hover:text-[#EF9822]"
+                    className="text-sm text-gray-400 transition-colors hover:text-amber-600"
                   >
                     {link.label}
                   </Link>
@@ -93,25 +93,25 @@ export default function Footer() {
             </h3>
             <ul className="flex flex-col gap-3">
               <li className="flex items-start gap-2.5">
-                <Mail className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#EF9822]" />
+                <Mail className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
                 <a
                   href="mailto:contact@vpcomputer.in"
-                  className="text-sm text-gray-400 transition-colors hover:text-[#EF9822]"
+                  className="text-sm text-gray-400 transition-colors hover:text-amber-600"
                 >
                   contact@vpcomputer.in
                 </a>
               </li>
               <li className="flex items-start gap-2.5">
-                <Phone className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#EF9822]" />
+                <Phone className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
                 <a
                   href="tel:+919876543210"
-                  className="text-sm text-gray-400 transition-colors hover:text-[#EF9822]"
+                  className="text-sm text-gray-400 transition-colors hover:text-amber-600"
                 >
                   +91 98765 43210
                 </a>
               </li>
               <li className="flex items-start gap-2.5">
-                <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#EF9822]" />
+                <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
                 <span className="text-sm text-gray-400">
                   Patna, Bihar, India
                 </span>
@@ -148,7 +148,7 @@ export default function Footer() {
                   href={link.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-gray-500 transition-colors hover:text-[#EF9822]"
+                  className="text-xs text-gray-500 transition-colors hover:text-amber-600"
                 >
                   {link.label}
                 </a>

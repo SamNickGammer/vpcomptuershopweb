@@ -38,21 +38,21 @@ type OrderSummary = {
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  pending: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
-  confirmed: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  processing: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
-  ready_to_ship: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-  shipped: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
-  delivered: "bg-green-500/10 text-green-400 border-green-500/20",
-  cancelled: "bg-red-500/10 text-red-400 border-red-500/20",
-  returned: "bg-orange-500/10 text-orange-400 border-orange-500/20",
+  pending: "bg-yellow-50 text-yellow-600 border-yellow-200",
+  confirmed: "bg-blue-50 text-blue-600 border-blue-200",
+  processing: "bg-indigo-50 text-indigo-600 border-indigo-200",
+  ready_to_ship: "bg-purple-50 text-purple-600 border-purple-200",
+  shipped: "bg-cyan-50 text-cyan-600 border-cyan-200",
+  delivered: "bg-green-50 text-green-600 border-green-200",
+  cancelled: "bg-red-50 text-red-500 border-red-200",
+  returned: "bg-orange-50 text-orange-600 border-orange-200",
 };
 
 const PAYMENT_STATUS_STYLES: Record<string, string> = {
-  pending: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
-  paid: "bg-green-500/10 text-green-400 border-green-500/20",
-  failed: "bg-red-500/10 text-red-400 border-red-500/20",
-  refunded: "bg-orange-500/10 text-orange-400 border-orange-500/20",
+  pending: "bg-yellow-50 text-yellow-600 border-yellow-200",
+  paid: "bg-green-50 text-green-600 border-green-200",
+  failed: "bg-red-50 text-red-500 border-red-200",
+  refunded: "bg-orange-50 text-orange-600 border-orange-200",
 };
 
 function formatStatus(status: string): string {
@@ -104,23 +104,23 @@ export default function AccountPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-[60vh] flex items-center justify-center bg-white">
+        <Loader2 className="h-8 w-8 animate-spin text-amber-600" />
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 px-4">
-        <User className="h-16 w-16 text-muted-foreground" />
-        <h1 className="text-2xl font-bold text-foreground">Login Required</h1>
-        <p className="text-muted-foreground text-center">
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 px-4 bg-white">
+        <User className="h-16 w-16 text-gray-400" />
+        <h1 className="text-2xl font-bold text-gray-900">Login Required</h1>
+        <p className="text-gray-500 text-center">
           Please log in to view your account.
         </p>
         <button
           onClick={() => openAuthModal("login")}
-          className="px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors"
+          className="px-6 py-3 bg-[#d97706] text-white rounded-lg font-medium hover:bg-[#b45309] transition-colors"
         >
           Log In
         </button>
@@ -129,25 +129,25 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
+    <div className="max-w-5xl mx-auto px-4 py-8 bg-white min-h-screen">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground">My Account</h1>
-        <p className="text-muted-foreground mt-1">
-          Welcome back, <span className="text-foreground font-medium">{user.name}</span>
+        <h1 className="text-3xl font-bold text-gray-900">My Account</h1>
+        <p className="text-gray-500 mt-1">
+          Welcome back, <span className="text-gray-900 font-medium">{user.name}</span>
         </p>
-        <p className="text-sm text-muted-foreground">{user.email}</p>
+        <p className="text-sm text-gray-500">{user.email}</p>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-8 bg-secondary/50 p-1 rounded-xl border border-border w-fit">
+      <div className="flex gap-1 mb-8 bg-gray-50 p-1 rounded-xl border border-gray-200 w-fit">
         <button
           onClick={() => setActiveTab("orders")}
           className={cn(
             "px-5 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
             activeTab === "orders"
-              ? "bg-card text-foreground shadow-sm border border-border"
-              : "text-muted-foreground hover:text-foreground"
+              ? "bg-white text-gray-900 shadow-sm border border-gray-200"
+              : "text-gray-500 hover:text-gray-900"
           )}
         >
           <Package className="h-4 w-4" />
@@ -158,8 +158,8 @@ export default function AccountPage() {
           className={cn(
             "px-5 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
             activeTab === "profile"
-              ? "bg-card text-foreground shadow-sm border border-border"
-              : "text-muted-foreground hover:text-foreground"
+              ? "bg-white text-gray-900 shadow-sm border border-gray-200"
+              : "text-gray-500 hover:text-gray-900"
           )}
         >
           <User className="h-4 w-4" />
@@ -172,18 +172,18 @@ export default function AccountPage() {
         <div>
           {ordersLoading ? (
             <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <Loader2 className="h-8 w-8 animate-spin text-amber-600" />
             </div>
           ) : orders.length === 0 ? (
-            <div className="bg-card border border-border rounded-xl p-12 text-center">
-              <ShoppingBag className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
-              <h2 className="text-xl font-semibold text-foreground mb-2">No orders yet</h2>
-              <p className="text-muted-foreground mb-6">
+            <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
+              <ShoppingBag className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">No orders yet</h2>
+              <p className="text-gray-500 mb-6">
                 You haven&apos;t placed any orders yet. Start shopping to see your orders here.
               </p>
               <Link
                 href="/products"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-[#d97706] text-white rounded-lg font-medium hover:bg-[#b45309] transition-colors"
               >
                 <ShoppingBag className="h-4 w-4" />
                 Browse Products
@@ -194,22 +194,22 @@ export default function AccountPage() {
               {orders.map((order) => (
                 <div
                   key={order.id}
-                  className="bg-card border border-border rounded-xl p-5 hover:border-primary/20 transition-colors"
+                  className="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 transition-colors"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-primary/10 rounded-lg">
-                        <Package className="h-5 w-5 text-primary" />
+                      <div className="p-2 bg-amber-50 rounded-lg">
+                        <Package className="h-5 w-5 text-amber-600" />
                       </div>
                       <div>
                         <Link
                           href={`/track-order?orderNumber=${order.orderNumber}`}
-                          className="font-semibold text-foreground hover:text-primary transition-colors inline-flex items-center gap-1"
+                          className="font-semibold text-gray-900 hover:text-amber-600 transition-colors inline-flex items-center gap-1"
                         >
                           {order.orderNumber}
                           <ExternalLink className="h-3.5 w-3.5" />
                         </Link>
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1.5 text-sm text-gray-500">
                           <Clock className="h-3.5 w-3.5" />
                           {formatDate(order.createdAt)}
                         </div>
@@ -238,7 +238,7 @@ export default function AccountPage() {
                   </div>
 
                   {/* Items summary */}
-                  <div className="text-sm text-muted-foreground mb-3">
+                  <div className="text-sm text-gray-500 mb-3">
                     {order.items.slice(0, 3).map((item, idx) => (
                       <span key={idx}>
                         {item.productName}
@@ -250,20 +250,20 @@ export default function AccountPage() {
                       </span>
                     ))}
                     {order.items.length > 3 && (
-                      <span className="text-muted-foreground/70">
+                      <span className="text-gray-400">
                         {" "}
                         +{order.items.length - 3} more
                       </span>
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between pt-3 border-t border-border">
-                    <span className="text-lg font-bold text-foreground">
+                  <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                    <span className="text-lg font-bold text-gray-900">
                       {formatPrice(order.totalAmount)}
                     </span>
                     <Link
                       href={`/track-order?orderNumber=${order.orderNumber}`}
-                      className="text-sm text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1 font-medium"
+                      className="text-sm text-amber-600 hover:text-amber-700 transition-colors inline-flex items-center gap-1 font-medium"
                     >
                       Track Order
                       <ChevronRight className="h-4 w-4" />
@@ -280,83 +280,83 @@ export default function AccountPage() {
       {activeTab === "profile" && (
         <div className="space-y-6">
           {/* Profile Info */}
-          <div className="bg-card border border-border rounded-xl p-6">
-            <h2 className="text-xl font-semibold text-foreground mb-6">Personal Information</h2>
+          <div className="bg-white border border-gray-200 rounded-xl p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Personal Information</h2>
 
             <div className="space-y-5">
-              <div className="flex items-center gap-4 p-4 bg-secondary rounded-lg">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <User className="h-5 w-5 text-primary" />
+              <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                <div className="p-2 bg-amber-50 rounded-lg">
+                  <User className="h-5 w-5 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Full Name</p>
-                  <p className="font-medium text-foreground">{user.name}</p>
+                  <p className="text-sm text-gray-500">Full Name</p>
+                  <p className="font-medium text-gray-900">{user.name}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-4 p-4 bg-secondary rounded-lg">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Mail className="h-5 w-5 text-primary" />
+              <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                <div className="p-2 bg-amber-50 rounded-lg">
+                  <Mail className="h-5 w-5 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Email</p>
-                  <p className="font-medium text-foreground">{user.email}</p>
+                  <p className="text-sm text-gray-500">Email</p>
+                  <p className="font-medium text-gray-900">{user.email}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-4 p-4 bg-secondary rounded-lg">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Phone className="h-5 w-5 text-primary" />
+              <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                <div className="p-2 bg-amber-50 rounded-lg">
+                  <Phone className="h-5 w-5 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Phone</p>
-                  <p className="font-medium text-muted-foreground">Not set</p>
+                  <p className="text-sm text-gray-500">Phone</p>
+                  <p className="font-medium text-gray-400">Not set</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Actions */}
-          <div className="bg-card border border-border rounded-xl p-6">
-            <h2 className="text-xl font-semibold text-foreground mb-6">Account Settings</h2>
+          <div className="bg-white border border-gray-200 rounded-xl p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Account Settings</h2>
 
             <div className="space-y-3">
-              <button className="w-full flex items-center gap-4 p-4 bg-secondary rounded-lg hover:bg-secondary/80 transition-colors text-left group">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Edit3 className="h-5 w-5 text-primary" />
+              <button className="w-full flex items-center gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left group">
+                <div className="p-2 bg-amber-50 rounded-lg">
+                  <Edit3 className="h-5 w-5 text-amber-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium text-foreground">Edit Profile</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="font-medium text-gray-900">Edit Profile</p>
+                  <p className="text-sm text-gray-500">
                     Update your name, phone number, and other details
                   </p>
                 </div>
-                <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-gray-900 transition-colors" />
               </button>
 
-              <button className="w-full flex items-center gap-4 p-4 bg-secondary rounded-lg hover:bg-secondary/80 transition-colors text-left group">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Lock className="h-5 w-5 text-primary" />
+              <button className="w-full flex items-center gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left group">
+                <div className="p-2 bg-amber-50 rounded-lg">
+                  <Lock className="h-5 w-5 text-amber-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium text-foreground">Change Password</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="font-medium text-gray-900">Change Password</p>
+                  <p className="text-sm text-gray-500">
                     Update your password for security
                   </p>
                 </div>
-                <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-gray-900 transition-colors" />
               </button>
 
               <button
                 onClick={logout}
-                className="w-full flex items-center gap-4 p-4 bg-red-500/5 border border-red-500/10 rounded-lg hover:bg-red-500/10 transition-colors text-left group"
+                className="w-full flex items-center gap-4 p-4 bg-red-50 border border-red-100 rounded-lg hover:bg-red-100 transition-colors text-left group"
               >
-                <div className="p-2 bg-red-500/10 rounded-lg">
-                  <LogOut className="h-5 w-5 text-red-400" />
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <LogOut className="h-5 w-5 text-red-500" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium text-red-400">Log Out</p>
-                  <p className="text-sm text-red-400/60">
+                  <p className="font-medium text-red-500">Log Out</p>
+                  <p className="text-sm text-red-400">
                     Sign out of your account
                   </p>
                 </div>

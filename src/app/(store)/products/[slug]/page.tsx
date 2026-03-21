@@ -145,7 +145,7 @@ function NotFound() {
         <div className="rounded-full bg-gray-100 p-4 mx-auto w-fit">
           <Package className="h-10 w-10 text-gray-400" />
         </div>
-        <h1 className="text-2xl font-bold text-[#1a1a1a]">
+        <h1 className="text-2xl font-bold text-gray-900">
           Product Not Found
         </h1>
         <p className="text-gray-500 max-w-md">
@@ -174,7 +174,7 @@ function ImageGallery({ images }: { images: ProductImageEntry[] }) {
   return (
     <div className="space-y-4">
       {/* Main image */}
-      <div className="relative aspect-square rounded-xl bg-[#f9fafb] overflow-hidden border border-[#e5e7eb]">
+      <div className="relative aspect-square rounded-xl bg-gray-50 overflow-hidden border border-gray-200">
         {mainImage ? (
           <ProductImage
             src={mainImage.url}
@@ -201,8 +201,8 @@ function ImageGallery({ images }: { images: ProductImageEntry[] }) {
               className={cn(
                 "relative h-20 w-20 shrink-0 rounded-lg overflow-hidden border-2 transition-all",
                 idx === selectedIndex
-                  ? "border-[#EF9822] ring-1 ring-[#EF9822]/30"
-                  : "border-[#e5e7eb] hover:border-gray-400"
+                  ? "border-amber-600 ring-1 ring-amber-600/30"
+                  : "border-gray-200 hover:border-gray-400"
               )}
             >
               <ProductImage
@@ -407,7 +407,7 @@ export default function ProductDetailPage({
         <nav className="flex items-center gap-1.5 text-sm text-gray-500 mb-8 overflow-x-auto">
           <Link
             href="/"
-            className="hover:text-[#1a1a1a] transition-colors shrink-0 flex items-center gap-1"
+            className="hover:text-gray-900 transition-colors shrink-0 flex items-center gap-1"
           >
             <Home className="h-3.5 w-3.5" />
             Home
@@ -415,12 +415,12 @@ export default function ProductDetailPage({
           <ChevronRight className="h-3.5 w-3.5 shrink-0" />
           <Link
             href="/products"
-            className="hover:text-[#1a1a1a] transition-colors shrink-0"
+            className="hover:text-gray-900 transition-colors shrink-0"
           >
             Products
           </Link>
           <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-          <span className="text-[#1a1a1a] truncate">{selectedVariant?.displayName || product.name}</span>
+          <span className="text-gray-900 truncate">{selectedVariant?.displayName || product.name}</span>
         </nav>
 
         {/* Two-column layout */}
@@ -437,7 +437,7 @@ export default function ProductDetailPage({
                   {conditionCfg.label}
                 </Badge>
               )}
-              <h1 className="text-2xl md:text-3xl font-bold text-[#1a1a1a] leading-tight">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">
                 {selectedVariant?.displayName || product.name}
               </h1>
               {selectedVariant?.label && (
@@ -449,7 +449,7 @@ export default function ProductDetailPage({
 
             {/* Price */}
             <div className="flex items-baseline gap-3 flex-wrap">
-              <span className="text-3xl font-bold text-[#EF9822]">
+              <span className="text-3xl font-bold text-gray-900">
                 {formatPrice(currentPrice)}
               </span>
               {hasDiscount && (
@@ -490,7 +490,7 @@ export default function ProductDetailPage({
 
             {/* Variant Selector */}
             {hasVariantSelection && (
-              <div className="border-t border-[#e5e7eb] pt-6">
+              <div className="border-t border-gray-200 pt-6">
                 <label className="block text-sm font-medium text-gray-600 mb-3">
                   Options
                 </label>
@@ -510,9 +510,9 @@ export default function ProductDetailPage({
                         className={cn(
                           "px-4 py-2 rounded-lg text-sm font-medium border-2 transition-all",
                           isSelected
-                            ? "bg-[#EF9822]/10 text-[#EF9822] border-[#EF9822]"
+                            ? "bg-amber-50 text-amber-600 border-amber-600"
                             : isAvailable
-                              ? "bg-white border-[#e5e7eb] text-[#1a1a1a] hover:border-[#EF9822]/50 cursor-pointer"
+                              ? "bg-white border-gray-200 text-gray-900 hover:border-amber-600/50 cursor-pointer"
                               : "bg-gray-50 border-gray-200 text-gray-300 cursor-not-allowed line-through"
                         )}
                       >
@@ -525,21 +525,21 @@ export default function ProductDetailPage({
             )}
 
             {/* Quantity + Add to Cart */}
-            <div className="border-t border-[#e5e7eb] pt-6 space-y-4">
+            <div className="border-t border-gray-200 pt-6 space-y-4">
               {/* Quantity */}
               <div>
                 <label className="block text-sm font-medium text-gray-600 mb-2.5">
                   Quantity
                 </label>
-                <div className="inline-flex items-center border border-[#e5e7eb] rounded-lg overflow-hidden">
+                <div className="inline-flex items-center border border-gray-200 rounded-lg overflow-hidden">
                   <button
                     onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                     disabled={quantity <= 1}
-                    className="h-10 w-10 flex items-center justify-center text-gray-500 hover:text-[#1a1a1a] hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="h-10 w-10 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Minus className="h-4 w-4" />
                   </button>
-                  <span className="h-10 w-14 flex items-center justify-center text-sm font-medium border-x border-[#e5e7eb] bg-white text-[#1a1a1a]">
+                  <span className="h-10 w-14 flex items-center justify-center text-sm font-medium border-x border-gray-200 bg-white text-gray-900">
                     {quantity}
                   </span>
                   <button
@@ -547,7 +547,7 @@ export default function ProductDetailPage({
                       setQuantity((q) => Math.min(q + 1, currentStock))
                     }
                     disabled={quantity >= currentStock}
-                    className="h-10 w-10 flex items-center justify-center text-gray-500 hover:text-[#1a1a1a] hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="h-10 w-10 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Plus className="h-4 w-4" />
                   </button>
@@ -561,7 +561,7 @@ export default function ProductDetailPage({
                 className={cn(
                   "w-full sm:w-auto sm:min-w-[200px] h-12 px-8 rounded-lg text-base font-semibold inline-flex items-center justify-center gap-2 transition-colors",
                   isInStock
-                    ? "bg-[#EF9822] text-white hover:bg-[#d98820] cursor-pointer"
+                    ? "bg-[#d97706] text-white hover:bg-[#b45309] cursor-pointer"
                     : "bg-gray-200 text-gray-400 cursor-not-allowed"
                 )}
               >
@@ -572,23 +572,23 @@ export default function ProductDetailPage({
 
             {/* Specifications */}
             {currentSpecs.length > 0 && (
-              <div className="border-t border-[#e5e7eb] pt-6">
-                <h2 className="text-lg font-semibold text-[#1a1a1a] mb-4">
+              <div className="border-t border-gray-200 pt-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
                   Specifications
                 </h2>
-                <div className="rounded-xl border border-[#e5e7eb] overflow-hidden">
+                <div className="rounded-xl border border-gray-200 overflow-hidden">
                   {currentSpecs.map((spec, idx) => (
                     <div
                       key={idx}
                       className={cn(
                         "grid grid-cols-2 gap-4 px-4 py-3 text-sm",
-                        idx % 2 === 0 ? "bg-white" : "bg-[#f9fafb]"
+                        idx % 2 === 0 ? "bg-white" : "bg-gray-50"
                       )}
                     >
                       <span className="font-medium text-gray-500">
                         {spec.key}
                       </span>
-                      <span className="text-[#1a1a1a]">{spec.value}</span>
+                      <span className="text-gray-900">{spec.value}</span>
                     </div>
                   ))}
                 </div>
@@ -597,8 +597,8 @@ export default function ProductDetailPage({
 
             {/* Description */}
             {(selectedVariant?.description || product.description) && (
-              <div className="border-t border-[#e5e7eb] pt-6">
-                <h2 className="text-lg font-semibold text-[#1a1a1a] mb-4">
+              <div className="border-t border-gray-200 pt-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
                   Description
                 </h2>
                 <div className="prose prose-sm max-w-none text-gray-600 leading-relaxed whitespace-pre-line">
@@ -609,8 +609,8 @@ export default function ProductDetailPage({
 
             {/* Other Variants */}
             {product.variants.length > 1 && (
-              <div className="border-t border-[#e5e7eb] pt-6">
-                <h2 className="text-lg font-semibold text-[#1a1a1a] mb-4">
+              <div className="border-t border-gray-200 pt-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
                   Other Variants
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -620,10 +620,10 @@ export default function ProductDetailPage({
                       <Link
                         key={v.variantId}
                         href={`/products/${product.slug}?variant=${v.variantId}`}
-                        className="flex items-center gap-3 rounded-xl border border-[#e5e7eb] p-3 hover:border-[#EF9822]/40 hover:shadow-sm transition-all"
+                        className="flex items-center gap-3 rounded-xl border border-gray-200 p-3 hover:border-amber-600/40 hover:shadow-sm transition-all"
                       >
                         {v.images.length > 0 ? (
-                          <div className="w-14 h-14 rounded-lg overflow-hidden bg-[#f9fafb] border border-[#e5e7eb] shrink-0">
+                          <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-50 border border-gray-200 shrink-0">
                             <ProductImage
                               src={v.images[0].url}
                               alt={v.images[0].altText || v.displayName}
@@ -633,7 +633,7 @@ export default function ProductDetailPage({
                             />
                           </div>
                         ) : product.images.length > 0 ? (
-                          <div className="w-14 h-14 rounded-lg overflow-hidden bg-[#f9fafb] border border-[#e5e7eb] shrink-0">
+                          <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-50 border border-gray-200 shrink-0">
                             <ProductImage
                               src={product.images[0].url}
                               alt={product.images[0].altText || v.displayName}
@@ -643,16 +643,16 @@ export default function ProductDetailPage({
                             />
                           </div>
                         ) : (
-                          <div className="w-14 h-14 rounded-lg bg-[#f9fafb] border border-[#e5e7eb] flex items-center justify-center shrink-0">
+                          <div className="w-14 h-14 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-center shrink-0">
                             <Package className="h-5 w-5 text-gray-300" />
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-[#1a1a1a] truncate">
+                          <p className="text-sm font-medium text-gray-900 truncate">
                             {v.displayName || `${product.name} ${v.name}`}
                           </p>
                           <div className="flex items-center gap-2 mt-1">
-                            <span className="text-sm font-bold text-[#EF9822]">
+                            <span className="text-sm font-bold text-gray-900">
                               {formatPrice(v.price)}
                             </span>
                             <span

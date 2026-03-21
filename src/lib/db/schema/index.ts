@@ -7,3 +7,4 @@ export * from "./orders";
 export * from "./tracking";
 export * from "./coupons";
 export * from "./customers";
+export * from "./wishlists";

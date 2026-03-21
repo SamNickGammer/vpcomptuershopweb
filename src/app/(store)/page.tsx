@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ProductImage } from "@/components/ui/product-image";
 import { cn, formatPrice } from "@/lib/utils/helpers";
 import { useCart } from "@/hooks/useCart";
+import { useWishlist } from "@/hooks/useWishlist";
 import {
   Search,
   FolderTree,
@@ -25,6 +26,7 @@ import {
   ShoppingCart,
   RotateCcw,
   Lock,
+  Heart,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -88,15 +90,15 @@ type FeaturedProduct = {
 
 function ConditionBadge({ condition }: { condition: string }) {
   const styles: Record<string, string> = {
-    new: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    refurbished: "bg-amber-50 text-amber-700 border-amber-200",
-    used: "bg-gray-100 text-gray-600 border-gray-200",
+    new: "bg-green-500 text-white",
+    refurbished: "bg-amber-500 text-white",
+    used: "bg-gray-500 text-white",
   };
 
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium capitalize",
+        "inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide shadow-sm",
         styles[condition] || styles.used
       )}
     >
@@ -125,11 +127,11 @@ function SearchDropdown({
   const isEmpty = results && !hasCategories && !hasProducts;
 
   return (
-    <div className="absolute top-full left-0 right-0 mt-2 rounded-xl border border-[#e5e7eb] shadow-xl z-50 max-h-[75vh] overflow-hidden bg-white">
+    <div className="absolute top-full left-0 right-0 mt-2 rounded-xl border border-[gray-200] shadow-xl z-50 max-h-[75vh] overflow-hidden bg-white">
       {loading && (
         <div className="flex flex-col items-center justify-center py-12 gap-3">
-          <div className="h-8 w-8 rounded-full border-2 border-[#EF9822]/20 border-t-[#EF9822] animate-spin" />
-          <span className="text-sm text-[#6b7280]">
+          <div className="h-8 w-8 rounded-full border-2 border-[#d97706]/20 border-t-[#d97706] animate-spin" />
+          <span className="text-sm text-gray-500">
             Searching for &ldquo;{query}&rdquo;...
           </span>
         </div>
@@ -137,12 +139,12 @@ function SearchDropdown({
 
       {isEmpty && !loading && (
         <div className="flex flex-col items-center py-12 gap-2">
-          <Search className="h-8 w-8 text-[#d1d5db]" />
-          <p className="text-[#6b7280] text-sm">
+          <Search className="h-8 w-8 text-gray-300" />
+          <p className="text-gray-500 text-sm">
             No results for &ldquo;
-            <span className="text-[#1a1a1a]">{query}</span>&rdquo;
+            <span className="text-gray-900">{query}</span>&rdquo;
           </p>
-          <p className="text-[#9ca3af] text-xs">Try a different search term</p>
+          <p className="text-gray-400 text-xs">Try a different search term</p>
         </div>
       )}
 
@@ -152,14 +154,14 @@ function SearchDropdown({
           {hasCategories && (
             <div className="px-2 pt-3 pb-2">
               <div className="flex items-center justify-between px-3 mb-2">
-                <span className="text-[11px] font-semibold uppercase tracking-widest text-[#9ca3af]">
+                <span className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">
                   Categories
                 </span>
                 {results.categories.length > 4 && (
                   <Link
                     href={`/products?search=${encodeURIComponent(query)}`}
                     onClick={onClose}
-                    className="text-[11px] text-[#EF9822] hover:underline transition-colors"
+                    className="text-[11px] text-[#d97706] hover:underline transition-colors"
                   >
                     View all
                   </Link>
@@ -171,9 +173,9 @@ function SearchDropdown({
                     key={cat.id}
                     href={`/products?categoryId=${cat.id}`}
                     onClick={onClose}
-                    className="flex-shrink-0 flex items-center gap-2.5 rounded-lg px-3.5 py-2.5 bg-[#f9fafb] hover:bg-[#f3f4f6] border border-[#e5e7eb] hover:border-[#EF9822]/30 transition-all duration-200 group"
+                    className="flex-shrink-0 flex items-center gap-2.5 rounded-lg px-3.5 py-2.5 bg-gray-50 hover:bg-gray-100 border border-[gray-200] hover:border-[#d97706]/30 transition-all duration-200 group"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-[#f3f4f6] overflow-hidden flex items-center justify-center border border-[#e5e7eb]">
+                    <div className="w-9 h-9 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center border border-[gray-200]">
                       {cat.imageUrl ? (
                         <ProductImage
                           src={cat.imageUrl}
@@ -183,13 +185,13 @@ function SearchDropdown({
                           className="object-cover w-full h-full"
                         />
                       ) : (
-                        <FolderTree className="h-4 w-4 text-[#9ca3af]" />
+                        <FolderTree className="h-4 w-4 text-gray-400" />
                       )}
                     </div>
-                    <span className="text-sm font-medium text-[#374151] group-hover:text-[#1a1a1a] whitespace-nowrap transition-colors">
+                    <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 whitespace-nowrap transition-colors">
                       {cat.name}
                     </span>
-                    <ChevronRight className="h-3 w-3 text-[#d1d5db] group-hover:text-[#EF9822] transition-colors" />
+                    <ChevronRight className="h-3 w-3 text-gray-300 group-hover:text-[#d97706] transition-colors" />
                   </Link>
                 ))}
               </div>
@@ -198,17 +200,17 @@ function SearchDropdown({
 
           {/* Divider */}
           {hasCategories && hasProducts && (
-            <div className="mx-4 h-px bg-[#e5e7eb]" />
+            <div className="mx-4 h-px bg-[gray-200]" />
           )}
 
           {/* Products */}
           {hasProducts && (
             <div className="px-2 py-2">
               <div className="flex items-center justify-between px-3 mb-1.5">
-                <span className="text-[11px] font-semibold uppercase tracking-widest text-[#9ca3af]">
+                <span className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">
                   Products
                 </span>
-                <span className="text-[11px] text-[#9ca3af]">
+                <span className="text-[11px] text-gray-400">
                   {results.totalProducts} found
                 </span>
               </div>
@@ -218,10 +220,10 @@ function SearchDropdown({
                     key={product.id}
                     href={product.variantId ? `/products/${product.slug}?variant=${product.variantId}` : `/products/${product.slug}`}
                     onClick={onClose}
-                    className="flex items-center gap-3.5 rounded-lg px-3 py-3 hover:bg-[#f9fafb] transition-all duration-200 group"
+                    className="flex items-center gap-3.5 rounded-lg px-3 py-3 hover:bg-gray-50 transition-all duration-200 group"
                   >
                     {/* Image */}
-                    <div className="w-14 h-14 rounded-lg bg-[#f3f4f6] overflow-hidden flex-shrink-0 border border-[#e5e7eb] group-hover:border-[#EF9822]/30 transition-colors">
+                    <div className="w-14 h-14 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0 border border-[gray-200] group-hover:border-[#d97706]/30 transition-colors">
                       {product.image ? (
                         <ProductImage
                           src={product.image.url}
@@ -232,14 +234,14 @@ function SearchDropdown({
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <FolderTree className="h-5 w-5 text-[#d1d5db]" />
+                          <FolderTree className="h-5 w-5 text-gray-300" />
                         </div>
                       )}
                     </div>
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[#374151] group-hover:text-[#1a1a1a] truncate transition-colors">
+                      <p className="text-sm font-medium text-gray-700 group-hover:text-gray-900 truncate transition-colors">
                         {product.name}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
@@ -265,11 +267,11 @@ function SearchDropdown({
 
                     {/* Price */}
                     <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-                      <span className="text-sm font-bold text-[#1a1a1a] font-mono">
+                      <span className="text-sm font-bold text-gray-900 font-mono">
                         {product.price ? formatPrice(product.price) : "N/A"}
                       </span>
                       {product.compareAtPrice && (
-                        <span className="text-[11px] text-[#9ca3af] line-through font-mono">
+                        <span className="text-[11px] text-gray-400 line-through font-mono">
                           {formatPrice(product.compareAtPrice)}
                         </span>
                       )}
@@ -284,7 +286,7 @@ function SearchDropdown({
                   <Link
                     href={`/products?search=${encodeURIComponent(query)}`}
                     onClick={onClose}
-                    className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-[#FFF3E0] hover:bg-[#FFECCC] border border-[#EF9822]/20 text-[#EF9822] text-sm font-medium transition-all duration-200 group"
+                    className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-amber-50 hover:bg-amber-100 border border-[#d97706]/20 text-[#d97706] text-sm font-medium transition-all duration-200 group"
                   >
                     View all {results.totalProducts} results
                     <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
@@ -305,6 +307,8 @@ function ProductCard({ product }: { product: FeaturedProduct }) {
   const image = product.image;
   const inStock = product.inStock;
   const { addItem } = useCart();
+  const { isWishlisted, toggleWishlist } = useWishlist();
+  const wishlisted = isWishlisted(product.productId, product.variantId);
 
   const productLink = product.variantId
     ? `/products/${product.slug}?variant=${product.variantId}`
@@ -336,92 +340,121 @@ function ProductCard({ product }: { product: FeaturedProduct }) {
     });
   }
 
+  function handleWishlist(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleWishlist(product.productId, product.variantId);
+  }
+
   return (
     <Link href={productLink} className="group block">
-      <div className="bg-white rounded-xl border border-[#e5e7eb] overflow-hidden shadow-sm hover:shadow-md hover:border-[#EF9822]/40 transition-all duration-300">
-        {/* Image */}
-        <div className="relative aspect-[4/3] bg-[#f9fafb] overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg hover:border-gray-300 transition-all duration-300">
+        {/* Image with overlay */}
+        <div className="relative aspect-square bg-gray-50 overflow-hidden">
           {image ? (
-            <ProductImage
-              src={image.url}
-              alt={image.altText || product.name}
-              fill
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            />
+            <>
+              <ProductImage
+                src={image.url}
+                alt={image.altText || product.name}
+                fill
+                className="object-cover transition-transform duration-500 group-hover:scale-105"
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+              />
+              {/* Gradient overlay for badge visibility */}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/10 pointer-events-none" />
+            </>
           ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <FolderTree className="h-10 w-10 text-[#d1d5db]" />
+            <div className="w-full h-full flex items-center justify-center bg-gray-100">
+              <FolderTree className="h-10 w-10 text-gray-300" />
             </div>
           )}
-          {/* Condition badge */}
-          <div className="absolute top-3 left-3">
+
+          {/* Top row: condition + discount */}
+          <div className="absolute top-2.5 left-2.5 right-2.5 flex items-start justify-between">
             <ConditionBadge condition={product.condition} />
+            {discount && (
+              <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm">
+                -{discount}%
+              </span>
+            )}
           </div>
-          {/* Discount badge */}
-          {discount && (
-            <div className="absolute top-3 right-3 bg-[#EF9822] text-white text-xs font-bold px-2 py-1 rounded-md">
-              -{discount}%
-            </div>
-          )}
+
+          {/* Wishlist button */}
+          <button
+            onClick={handleWishlist}
+            className="absolute bottom-2.5 right-2.5 p-2 rounded-full bg-white/90 backdrop-blur-sm shadow-sm hover:bg-white transition-colors"
+          >
+            <Heart
+              className={cn(
+                "h-4 w-4 transition-colors",
+                wishlisted
+                  ? "fill-red-500 text-red-500"
+                  : "text-gray-500 hover:text-red-400"
+              )}
+            />
+          </button>
         </div>
 
         {/* Info */}
-        <div className="p-4">
+        <div className="p-3.5">
           {/* Category */}
           {product.categoryName && (
-            <p className="text-[11px] uppercase tracking-wider text-[#9ca3af] mb-1">
+            <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-1.5">
               {product.categoryName}
             </p>
           )}
-          <p className="font-medium text-[#1a1a1a] line-clamp-2 leading-snug mb-3 group-hover:text-[#EF9822] transition-colors">
-            {product.name}
-          </p>
 
-          {/* Prices */}
-          <div className="flex items-baseline gap-2 mb-3">
-            <span className="text-lg font-bold text-[#EF9822]">
+          {/* Name */}
+          <h3 className="text-[13px] font-medium text-gray-800 line-clamp-2 leading-snug mb-2 group-hover:text-gray-900 transition-colors min-h-[36px]">
+            {product.name}
+          </h3>
+
+          {/* Price row */}
+          <div className="flex items-baseline gap-1.5 mb-3">
+            <span className="text-base font-bold text-gray-900">
               {formatPrice(product.price)}
             </span>
             {product.compareAtPrice &&
               product.compareAtPrice > product.price && (
-                <span className="text-sm text-[#9ca3af] line-through">
+                <span className="text-xs text-gray-400 line-through">
                   {formatPrice(product.compareAtPrice)}
                 </span>
               )}
           </div>
 
-          {/* Stock + Add to Cart */}
-          <div className="flex items-center justify-between">
+          {/* Stock indicator */}
+          <div className="flex items-center gap-1 mb-3">
             <span
               className={cn(
-                "text-xs font-medium flex items-center gap-1",
-                inStock ? "text-emerald-600" : "text-red-500"
+                "w-1.5 h-1.5 rounded-full",
+                inStock ? "bg-green-500" : "bg-red-400"
+              )}
+            />
+            <span
+              className={cn(
+                "text-[11px] font-medium",
+                inStock ? "text-green-600" : "text-red-500"
               )}
             >
-              <span
-                className={cn(
-                  "w-1.5 h-1.5 rounded-full",
-                  inStock ? "bg-emerald-500" : "bg-red-500"
-                )}
-              />
               {inStock ? "In Stock" : "Out of Stock"}
             </span>
-            {inStock ? (
-              <button
-                onClick={handleAddToCart}
-                className="flex items-center gap-1.5 bg-[#EF9822] hover:bg-[#d9881d] text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
-              >
-                <ShoppingCart className="h-3 w-3" />
-                Add to Cart
-              </button>
-            ) : (
-              <span className="flex items-center gap-1 text-xs text-[#EF9822] font-medium">
-                View
-                <ArrowRight className="h-3 w-3" />
-              </span>
-            )}
           </div>
+
+          {/* Add to Cart button */}
+          {inStock ? (
+            <button
+              onClick={handleAddToCart}
+              className="w-full flex items-center justify-center gap-1.5 bg-gray-900 hover:bg-gray-800 text-white text-xs font-medium py-2.5 rounded-lg transition-colors"
+            >
+              <ShoppingCart className="h-3.5 w-3.5" />
+              Add to Cart
+            </button>
+          ) : (
+            <div className="w-full flex items-center justify-center gap-1 text-xs text-gray-400 font-medium py-2.5 rounded-lg border border-gray-200 bg-gray-50">
+              View Details
+              <ArrowRight className="h-3 w-3" />
+            </div>
+          )}
         </div>
       </div>
     </Link>
@@ -523,7 +556,7 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-white">
       {/* ── Section 1: Promo Ticker ─────────────────────────────────────────── */}
-      <div className="bg-[#EF9822] overflow-hidden">
+      <div className="bg-[#d97706] overflow-hidden">
         <div className="ticker-scroll flex items-center gap-12 whitespace-nowrap py-2 w-max">
           {[...Array(2)].map((_, rep) => (
             <div key={rep} className="flex items-center gap-12">
@@ -552,24 +585,24 @@ export default function HomePage() {
       </div>
 
       {/* ── Section 2: Hero Banner Area ─────────────────────────────────────── */}
-      <section className="bg-[#f9fafb] border-b border-[#e5e7eb]">
+      <section className="bg-gray-50 border-b border-[gray-200]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10">
           <div className="grid lg:grid-cols-5 gap-4 lg:gap-6">
             {/* Main Promo Banner (left ~65%) */}
             <div className="lg:col-span-3">
               <div className="hero-stagger-1 relative rounded-2xl overflow-hidden bg-gradient-to-br from-[#234183] via-[#1d3570] to-[#162a5e] p-8 md:p-10 h-full min-h-[280px] flex flex-col justify-center">
                 {/* Decorative corner accent */}
-                <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-[#EF9822]/20 to-transparent rounded-bl-full" />
+                <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-[#d97706]/20 to-transparent rounded-bl-full" />
                 <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-white/5 to-transparent rounded-tr-full" />
 
                 <div className="relative">
-                  <div className="inline-flex items-center gap-1.5 bg-[#EF9822]/20 rounded-full px-3 py-1 text-xs font-bold text-[#EF9822] uppercase tracking-wider mb-4">
+                  <div className="inline-flex items-center gap-1.5 bg-[#d97706]/20 rounded-full px-3 py-1 text-xs font-bold text-[#d97706] uppercase tracking-wider mb-4">
                     <Percent className="h-3 w-3" /> Limited Time Offer
                   </div>
                   <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.15] mb-4 text-white">
                     Refurbished Laptops
                     <br />
-                    <span className="text-[#EF9822]">Starting ₹12,999</span>
+                    <span className="text-[#d97706]">Starting ₹12,999</span>
                   </h1>
                   <p className="text-white/70 text-sm md:text-base max-w-md mb-6 leading-relaxed">
                     Dell, HP, Lenovo &amp; more — professionally restored with
@@ -577,7 +610,7 @@ export default function HomePage() {
                   </p>
                   <Link
                     href="/products?condition=refurbished"
-                    className="inline-flex items-center gap-2 bg-[#EF9822] hover:bg-[#d9881d] text-white font-semibold px-6 py-3 rounded-xl transition-colors shadow-lg shadow-[#EF9822]/30"
+                    className="inline-flex items-center gap-2 bg-[#d97706] hover:bg-[#b45309] text-white font-semibold px-6 py-3 rounded-xl transition-colors shadow-lg shadow-[#d97706]/30"
                   >
                     Shop Now
                     <ArrowRight className="h-4 w-4" />
@@ -593,7 +626,7 @@ export default function HomePage() {
                 href="/products?condition=new"
                 className="hero-stagger-2 group block"
               >
-                <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5 hover:border-[#EF9822]/40 hover:shadow-md transition-all h-full">
+                <div className="rounded-2xl border border-[gray-200] bg-white p-5 hover:border-[#d97706]/40 hover:shadow-md transition-all h-full">
                   <div className="flex items-center gap-2 mb-3">
                     <div className="p-2 rounded-lg bg-emerald-50">
                       <Laptop className="h-4 w-4 text-emerald-600" />
@@ -602,13 +635,13 @@ export default function HomePage() {
                       New Arrivals
                     </span>
                   </div>
-                  <h3 className="font-bold text-[#1a1a1a] mb-1 group-hover:text-[#EF9822] transition-colors">
+                  <h3 className="font-bold text-gray-900 mb-1 group-hover:text-[#d97706] transition-colors">
                     Brand New Laptops
                   </h3>
-                  <p className="text-xs text-[#6b7280] mb-3">
+                  <p className="text-xs text-gray-500 mb-3">
                     ASUS, HP, Lenovo, Dell
                   </p>
-                  <p className="text-lg font-bold text-[#EF9822]">
+                  <p className="text-lg font-bold text-[#d97706]">
                     From ₹29,999
                   </p>
                 </div>
@@ -619,7 +652,7 @@ export default function HomePage() {
                 href="/products?search=processor"
                 className="hero-stagger-3 group block"
               >
-                <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5 hover:border-[#EF9822]/40 hover:shadow-md transition-all h-full">
+                <div className="rounded-2xl border border-[gray-200] bg-white p-5 hover:border-[#d97706]/40 hover:shadow-md transition-all h-full">
                   <div className="flex items-center gap-2 mb-3">
                     <div className="p-2 rounded-lg bg-blue-50">
                       <BadgeCheck className="h-4 w-4 text-blue-600" />
@@ -628,13 +661,13 @@ export default function HomePage() {
                       Components
                     </span>
                   </div>
-                  <h3 className="font-bold text-[#1a1a1a] mb-1 group-hover:text-[#EF9822] transition-colors">
+                  <h3 className="font-bold text-gray-900 mb-1 group-hover:text-[#d97706] transition-colors">
                     Processors &amp; RAM
                   </h3>
-                  <p className="text-xs text-[#6b7280] mb-3">
+                  <p className="text-xs text-gray-500 mb-3">
                     Intel &amp; AMD, DDR4
                   </p>
-                  <p className="text-lg font-bold text-[#EF9822]">
+                  <p className="text-lg font-bold text-[#d97706]">
                     From ₹3,499
                   </p>
                 </div>
@@ -645,25 +678,25 @@ export default function HomePage() {
                 href="/products?search=motherboard"
                 className="hero-stagger-4 group block col-span-2 lg:col-span-1"
               >
-                <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5 hover:border-[#EF9822]/40 hover:shadow-md transition-all">
+                <div className="rounded-2xl border border-[gray-200] bg-white p-5 hover:border-[#d97706]/40 hover:shadow-md transition-all">
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2 mb-2">
-                        <div className="p-2 rounded-lg bg-[#FFF3E0]">
-                          <ShieldCheck className="h-4 w-4 text-[#EF9822]" />
+                        <div className="p-2 rounded-lg bg-amber-50">
+                          <ShieldCheck className="h-4 w-4 text-[#d97706]" />
                         </div>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-[#EF9822]">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-[#d97706]">
                           Bestsellers
                         </span>
                       </div>
-                      <h3 className="font-bold text-[#1a1a1a] group-hover:text-[#EF9822] transition-colors">
+                      <h3 className="font-bold text-gray-900 group-hover:text-[#d97706] transition-colors">
                         Motherboards &amp; Storage
                       </h3>
-                      <p className="text-xs text-[#6b7280] mt-1">
+                      <p className="text-xs text-gray-500 mt-1">
                         Gigabyte, ASUS, Samsung, WD
                       </p>
                     </div>
-                    <ArrowRight className="h-5 w-5 text-[#d1d5db] group-hover:text-[#EF9822] group-hover:translate-x-1 transition-all" />
+                    <ArrowRight className="h-5 w-5 text-gray-300 group-hover:text-[#d97706] group-hover:translate-x-1 transition-all" />
                   </div>
                 </div>
               </Link>
@@ -696,16 +729,16 @@ export default function HomePage() {
             ].map((item) => (
               <div
                 key={item.text}
-                className="flex items-center gap-3 rounded-xl bg-white border border-[#e5e7eb] px-4 py-3"
+                className="flex items-center gap-3 rounded-xl bg-white border border-[gray-200] px-4 py-3"
               >
-                <div className="p-2 rounded-lg bg-[#FFF3E0]">
-                  <item.icon className="h-4 w-4 text-[#EF9822]" />
+                <div className="p-2 rounded-lg bg-amber-50">
+                  <item.icon className="h-4 w-4 text-[#d97706]" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-[#1a1a1a]">
+                  <p className="text-xs font-semibold text-gray-900">
                     {item.text}
                   </p>
-                  <p className="text-[10px] text-[#6b7280]">{item.sub}</p>
+                  <p className="text-[10px] text-gray-500">{item.sub}</p>
                 </div>
               </div>
             ))}
@@ -717,13 +750,13 @@ export default function HomePage() {
       <section className="py-12 md:py-16 px-4 bg-white">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-4 mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold text-[#234183]">
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
               Shop by Category
             </h2>
-            <div className="flex-1 h-px bg-[#e5e7eb]" />
+            <div className="flex-1 h-px bg-[gray-200]" />
             <Link
               href="/categories"
-              className="text-sm text-[#EF9822] hover:underline flex items-center gap-1 flex-shrink-0"
+              className="text-sm text-[#d97706] hover:underline flex items-center gap-1 flex-shrink-0"
             >
               View All
               <ArrowRight className="h-3 w-3" />
@@ -732,10 +765,10 @@ export default function HomePage() {
 
           {categoriesLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-[#6b7280]" />
+              <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
             </div>
           ) : categories.length === 0 ? (
-            <p className="text-center text-[#6b7280] py-12">
+            <p className="text-center text-gray-500 py-12">
               No categories available yet.
             </p>
           ) : (
@@ -746,7 +779,7 @@ export default function HomePage() {
                   href={`/products?categoryId=${cat.id}`}
                   className="group flex flex-col items-center gap-3"
                 >
-                  <div className="w-20 h-20 md:w-24 md:h-24 rounded-full border-2 border-[#e5e7eb] overflow-hidden bg-[#f9fafb] flex items-center justify-center transition-all duration-300 group-hover:scale-105 group-hover:border-[#EF9822] group-hover:shadow-md">
+                  <div className="w-20 h-20 md:w-24 md:h-24 rounded-full border-2 border-[gray-200] overflow-hidden bg-gray-50 flex items-center justify-center transition-all duration-300 group-hover:scale-105 group-hover:border-[#d97706] group-hover:shadow-md">
                     {cat.imageUrl ? (
                       <ProductImage
                         src={cat.imageUrl}
@@ -756,10 +789,10 @@ export default function HomePage() {
                         className="object-cover w-full h-full"
                       />
                     ) : (
-                      <FolderTree className="h-7 w-7 md:h-8 md:w-8 text-[#9ca3af] group-hover:text-[#EF9822] transition-colors" />
+                      <FolderTree className="h-7 w-7 md:h-8 md:w-8 text-gray-400 group-hover:text-[#d97706] transition-colors" />
                     )}
                   </div>
-                  <span className="text-sm font-medium text-center text-[#4b5563] group-hover:text-[#1a1a1a] transition-colors">
+                  <span className="text-sm font-medium text-center text-gray-600 group-hover:text-gray-900 transition-colors">
                     {cat.name}
                   </span>
                 </Link>
@@ -770,18 +803,18 @@ export default function HomePage() {
       </section>
 
       {/* ── Section 4: Featured Products ────────────────────────────────────── */}
-      <section className="py-12 md:py-16 px-4 bg-[#f9fafb] border-y border-[#e5e7eb]">
+      <section className="py-12 md:py-16 px-4 bg-gray-50 border-y border-[gray-200]">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-4 flex-1">
-              <h2 className="text-2xl md:text-3xl font-bold text-[#234183]">
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
                 Featured Products
               </h2>
-              <div className="flex-1 h-px bg-[#e5e7eb]" />
+              <div className="flex-1 h-px bg-[gray-200]" />
             </div>
             <Link
               href="/products"
-              className="text-sm text-[#EF9822] hover:underline flex items-center gap-1 ml-4 flex-shrink-0"
+              className="text-sm text-[#d97706] hover:underline flex items-center gap-1 ml-4 flex-shrink-0"
             >
               View All
               <ArrowRight className="h-3 w-3" />
@@ -793,19 +826,19 @@ export default function HomePage() {
               {Array.from({ length: 4 }).map((_, i) => (
                 <div
                   key={i}
-                  className="bg-white rounded-xl border border-[#e5e7eb] overflow-hidden animate-pulse"
+                  className="bg-white rounded-xl border border-[gray-200] overflow-hidden animate-pulse"
                 >
-                  <div className="aspect-[4/3] bg-[#f3f4f6]" />
+                  <div className="aspect-[4/3] bg-gray-100" />
                   <div className="p-4 space-y-3">
-                    <div className="h-4 bg-[#f3f4f6] rounded w-3/4" />
-                    <div className="h-5 bg-[#f3f4f6] rounded w-1/2" />
-                    <div className="h-3 bg-[#f3f4f6] rounded w-1/3" />
+                    <div className="h-4 bg-gray-100 rounded w-3/4" />
+                    <div className="h-5 bg-gray-100 rounded w-1/2" />
+                    <div className="h-3 bg-gray-100 rounded w-1/3" />
                   </div>
                 </div>
               ))}
             </div>
           ) : featuredProducts.length === 0 ? (
-            <p className="text-center text-[#6b7280] py-12">
+            <p className="text-center text-gray-500 py-12">
               No featured products yet.
             </p>
           ) : (
@@ -833,7 +866,7 @@ export default function HomePage() {
             </div>
             <Link
               href="/products"
-              className="inline-flex items-center gap-2 bg-[#EF9822] hover:bg-[#d9881d] text-white font-semibold px-8 py-3.5 rounded-xl transition-colors shadow-lg whitespace-nowrap"
+              className="inline-flex items-center gap-2 bg-[#d97706] hover:bg-[#b45309] text-white font-semibold px-8 py-3.5 rounded-xl transition-colors shadow-lg whitespace-nowrap"
             >
               Browse All Products
               <ArrowRight className="h-4 w-4" />
@@ -846,10 +879,10 @@ export default function HomePage() {
       <section className="py-12 md:py-16 px-4 bg-white">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10">
-            <h2 className="text-2xl md:text-3xl font-bold text-[#234183] mb-2">
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
               Why Choose V&P Computer?
             </h2>
-            <p className="text-[#6b7280] text-sm max-w-lg mx-auto">
+            <p className="text-gray-500 text-sm max-w-lg mx-auto">
               Trusted by hundreds of customers in Patna and across Bihar
             </p>
           </div>
@@ -883,7 +916,7 @@ export default function HomePage() {
             ].map((item) => (
               <div
                 key={item.title}
-                className="bg-white rounded-xl border border-[#e5e7eb] p-6 text-center hover:border-[#EF9822]/30 hover:shadow-md transition-all"
+                className="bg-white rounded-xl border border-[gray-200] p-6 text-center hover:border-[#d97706]/30 hover:shadow-md transition-all"
               >
                 <div
                   className={cn(
@@ -893,10 +926,10 @@ export default function HomePage() {
                 >
                   <item.icon className="h-6 w-6" />
                 </div>
-                <h3 className="font-semibold text-[#1a1a1a] mb-1">
+                <h3 className="font-semibold text-gray-900 mb-1">
                   {item.title}
                 </h3>
-                <p className="text-sm text-[#6b7280] leading-relaxed">
+                <p className="text-sm text-gray-500 leading-relaxed">
                   {item.desc}
                 </p>
               </div>
@@ -906,13 +939,13 @@ export default function HomePage() {
       </section>
 
       {/* ── Testimonials ────────────────────────────────────────────────────── */}
-      <section className="py-12 md:py-16 px-4 bg-[#f9fafb] border-y border-[#e5e7eb]">
+      <section className="py-12 md:py-16 px-4 bg-gray-50 border-y border-[gray-200]">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-4 mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold text-[#234183]">
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
               What Our Customers Say
             </h2>
-            <div className="flex-1 h-px bg-[#e5e7eb]" />
+            <div className="flex-1 h-px bg-[gray-200]" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -938,7 +971,7 @@ export default function HomePage() {
             ].map((testimonial) => (
               <div
                 key={testimonial.name}
-                className="bg-white rounded-xl border border-[#e5e7eb] p-6 hover:shadow-md transition-all"
+                className="bg-white rounded-xl border border-[gray-200] p-6 hover:shadow-md transition-all"
               >
                 {/* Stars */}
                 <div className="flex gap-0.5 mb-4">
@@ -949,14 +982,14 @@ export default function HomePage() {
                     />
                   ))}
                 </div>
-                <p className="text-[#1a1a1a] leading-relaxed mb-4">
+                <p className="text-gray-900 leading-relaxed mb-4">
                   &ldquo;{testimonial.quote}&rdquo;
                 </p>
                 <div>
-                  <p className="font-medium text-sm text-[#1a1a1a]">
+                  <p className="font-medium text-sm text-gray-900">
                     {testimonial.name}
                   </p>
-                  <p className="text-xs text-[#6b7280]">
+                  <p className="text-xs text-gray-500">
                     {testimonial.location}
                   </p>
                 </div>
@@ -969,23 +1002,23 @@ export default function HomePage() {
       {/* ── Section 7: Newsletter ───────────────────────────────────────────── */}
       <section className="py-12 md:py-16 px-4 bg-white">
         <div className="max-w-2xl mx-auto text-center">
-          <div className="bg-[#f9fafb] rounded-2xl border border-[#e5e7eb] p-8 md:p-12">
-            <div className="w-12 h-12 rounded-full bg-[#FFF3E0] flex items-center justify-center mx-auto mb-4">
-              <Mail className="h-6 w-6 text-[#EF9822]" />
+          <div className="bg-gray-50 rounded-2xl border border-[gray-200] p-8 md:p-12">
+            <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-4">
+              <Mail className="h-6 w-6 text-[#d97706]" />
             </div>
-            <h2 className="text-2xl font-bold text-[#234183] mb-2">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
               Stay Updated
             </h2>
-            <p className="text-[#6b7280] text-sm mb-6">
+            <p className="text-gray-500 text-sm mb-6">
               Get notified about new arrivals, deals, and restocks.
             </p>
             <div className="flex gap-2 max-w-md mx-auto">
               <input
                 type="email"
                 placeholder="Enter your email"
-                className="flex-1 h-11 px-4 rounded-lg bg-white border border-[#e5e7eb] text-[#1a1a1a] placeholder:text-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#EF9822]/40 focus:border-[#EF9822] transition-all text-sm"
+                className="flex-1 h-11 px-4 rounded-lg bg-white border border-[gray-200] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#d97706]/40 focus:border-[#d97706] transition-all text-sm"
               />
-              <button className="h-11 px-6 rounded-lg bg-[#EF9822] text-white font-medium text-sm hover:bg-[#d9881d] transition-colors flex-shrink-0">
+              <button className="h-11 px-6 rounded-lg bg-[#d97706] text-white font-medium text-sm hover:bg-[#b45309] transition-colors flex-shrink-0">
                 Subscribe
               </button>
             </div>

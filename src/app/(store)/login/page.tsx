@@ -79,26 +79,20 @@ export default function LoginPage() {
     setShowPassword(false);
   };
 
-  return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-16 relative">
-      {/* Background effects */}
-      <div className="absolute inset-0 pointer-events-none" style={{
-        background: "radial-gradient(ellipse 60% 50% at 50% 30%, rgba(129,140,248,0.06) 0%, transparent 70%)"
-      }} />
-      <div className="absolute inset-0 pointer-events-none" style={{
-        background: "radial-gradient(ellipse 40% 40% at 70% 60%, rgba(168,85,247,0.04) 0%, transparent 50%)"
-      }} />
+  const inputClasses = "w-full h-11 pl-10 pr-4 rounded-xl bg-white border border-gray-300 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all text-sm";
 
+  return (
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-16 relative bg-gray-50">
       <div className="relative w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2.5 mb-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-lg shadow-indigo-500/20">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#d97706] shadow-lg shadow-amber-500/20">
               <Cpu className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-bold tracking-tight">V&P Computer</span>
+            <span className="text-xl font-bold tracking-tight text-gray-900">V&P Computer</span>
           </Link>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-gray-500">
             {mode === "login" && "Sign in to your account"}
             {mode === "register" && "Create a new account"}
             {mode === "forgot" && "Reset your password"}
@@ -106,17 +100,17 @@ export default function LoginPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-card rounded-2xl border border-border p-8 shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+        <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-lg">
           {/* Tab switcher (login/register) */}
           {mode !== "forgot" && (
-            <div className="flex rounded-xl bg-secondary/50 p-1 mb-6">
+            <div className="flex rounded-xl bg-gray-50 p-1 mb-6">
               <button
                 onClick={() => switchMode("login")}
                 className={cn(
                   "flex-1 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
                   mode === "login"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-900"
                 )}
               >
                 Sign In
@@ -126,8 +120,8 @@ export default function LoginPage() {
                 className={cn(
                   "flex-1 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
                   mode === "register"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-900"
                 )}
               >
                 Create Account
@@ -137,52 +131,52 @@ export default function LoginPage() {
 
           {/* Error */}
           {error && (
-            <div className="mb-4 p-3 rounded-xl bg-red-500/[0.06] border border-red-500/20 text-red-400 text-sm">
+            <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-500 text-sm">
               {error}
             </div>
           )}
 
-          {/* ── Login Form ── */}
+          {/* -- Login Form -- */}
           {mode === "login" && (
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground/80">Email</label>
+                <label className="text-sm font-medium text-gray-900">Email</label>
                 <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
-                    className="w-full h-11 pl-10 pr-4 rounded-xl bg-secondary border border-border text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/30 transition-all text-sm"
+                    className={inputClasses}
                   />
                 </div>
               </div>
 
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-foreground/80">Password</label>
+                  <label className="text-sm font-medium text-gray-900">Password</label>
                   <button
                     type="button"
                     onClick={() => switchMode("forgot")}
-                    className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                    className="text-xs text-amber-600 hover:text-amber-700 transition-colors"
                   >
                     Forgot password?
                   </button>
                 </div>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full h-11 pl-10 pr-10 rounded-xl bg-secondary border border-border text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/30 transition-all text-sm"
+                    placeholder="--------"
+                    className={cn(inputClasses, "pr-10")}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-500 transition-colors"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -192,7 +186,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full h-11 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/10"
+                className="w-full h-11 rounded-xl bg-[#d97706] hover:bg-[#b45309] text-white font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -206,75 +200,75 @@ export default function LoginPage() {
             </form>
           )}
 
-          {/* ── Register Form ── */}
+          {/* -- Register Form -- */}
           {mode === "register" && (
             <form onSubmit={handleRegister} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground/80">Full Name</label>
+                <label className="text-sm font-medium text-gray-900">Full Name</label>
                 <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Rahul Sharma"
-                    className="w-full h-11 pl-10 pr-4 rounded-xl bg-secondary border border-border text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/30 transition-all text-sm"
+                    className={inputClasses}
                   />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground/80">Email</label>
+                <label className="text-sm font-medium text-gray-900">Email</label>
                 <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
-                    className="w-full h-11 pl-10 pr-4 rounded-xl bg-secondary border border-border text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/30 transition-all text-sm"
+                    className={inputClasses}
                   />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground/80">Phone <span className="text-muted-foreground/40">(optional)</span></label>
+                <label className="text-sm font-medium text-gray-900">Phone <span className="text-gray-400">(optional)</span></label>
                 <div className="relative">
-                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="+91 98XXX XXXXX"
-                    className="w-full h-11 pl-10 pr-4 rounded-xl bg-secondary border border-border text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/30 transition-all text-sm"
+                    className={inputClasses}
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground/80">Password</label>
+                  <label className="text-sm font-medium text-gray-900">Password</label>
                   <div className="relative">
-                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <input
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••"
-                      className="w-full h-11 pl-10 pr-4 rounded-xl bg-secondary border border-border text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/30 transition-all text-sm"
+                      placeholder="------"
+                      className={inputClasses}
                     />
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground/80">Confirm</label>
+                  <label className="text-sm font-medium text-gray-900">Confirm</label>
                   <div className="relative">
-                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <input
                       type={showPassword ? "text" : "password"}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="••••••"
-                      className="w-full h-11 pl-10 pr-4 rounded-xl bg-secondary border border-border text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/30 transition-all text-sm"
+                      placeholder="------"
+                      className={inputClasses}
                     />
                   </div>
                 </div>
@@ -284,7 +278,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors flex items-center gap-1.5"
+                  className="text-xs text-gray-400 hover:text-gray-500 transition-colors flex items-center gap-1.5"
                 >
                   {showPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                   {showPassword ? "Hide" : "Show"} passwords
@@ -294,7 +288,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full h-11 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/10"
+                className="w-full h-11 rounded-xl bg-[#d97706] hover:bg-[#b45309] text-white font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -306,29 +300,29 @@ export default function LoginPage() {
                 )}
               </button>
 
-              <p className="text-[11px] text-muted-foreground/40 text-center">
+              <p className="text-[11px] text-gray-400 text-center">
                 By creating an account, you agree to our Terms of Service and Privacy Policy.
               </p>
             </form>
           )}
 
-          {/* ── Forgot Password Form ── */}
+          {/* -- Forgot Password Form -- */}
           {mode === "forgot" && (
             <form onSubmit={handleForgotPassword} className="space-y-4">
-              <p className="text-sm text-muted-foreground mb-2">
+              <p className="text-sm text-gray-500 mb-2">
                 Enter your email and we&apos;ll send you a link to reset your password.
               </p>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground/80">Email</label>
+                <label className="text-sm font-medium text-gray-900">Email</label>
                 <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
-                    className="w-full h-11 pl-10 pr-4 rounded-xl bg-secondary border border-border text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/30 transition-all text-sm"
+                    className={inputClasses}
                   />
                 </div>
               </div>
@@ -336,7 +330,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full h-11 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/10"
+                className="w-full h-11 rounded-xl bg-[#d97706] hover:bg-[#b45309] text-white font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -351,7 +345,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => switchMode("login")}
-                className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className="w-full text-sm text-gray-500 hover:text-gray-900 transition-colors"
               >
                 Back to Sign In
               </button>
@@ -360,7 +354,7 @@ export default function LoginPage() {
         </div>
 
         {/* Bottom text */}
-        <p className="text-center text-xs text-muted-foreground/30 mt-6">
+        <p className="text-center text-xs text-gray-400 mt-6">
           Powered by V&P Computer Shop, Patna, Bihar
         </p>
       </div>

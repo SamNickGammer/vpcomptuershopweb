@@ -56,14 +56,14 @@ type OrderData = {
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
-  pending: { label: "Order Placed", color: "text-amber-400 bg-amber-500/10 border-amber-500/20", icon: Clock },
-  confirmed: { label: "Confirmed", color: "text-blue-400 bg-blue-500/10 border-blue-500/20", icon: CheckCircle2 },
-  processing: { label: "Processing", color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20", icon: Package },
-  ready_to_ship: { label: "Ready to Ship", color: "text-sky-400 bg-sky-500/10 border-sky-500/20", icon: Package },
-  shipped: { label: "Shipped", color: "text-purple-400 bg-purple-500/10 border-purple-500/20", icon: Truck },
-  delivered: { label: "Delivered", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20", icon: CheckCircle2 },
-  cancelled: { label: "Cancelled", color: "text-red-400 bg-red-500/10 border-red-500/20", icon: XCircle },
-  returned: { label: "Returned", color: "text-orange-400 bg-orange-500/10 border-orange-500/20", icon: RotateCcw },
+  pending: { label: "Order Placed", color: "text-amber-600 bg-amber-50 border-amber-200", icon: Clock },
+  confirmed: { label: "Confirmed", color: "text-blue-600 bg-blue-50 border-blue-200", icon: CheckCircle2 },
+  processing: { label: "Processing", color: "text-indigo-600 bg-indigo-50 border-indigo-200", icon: Package },
+  ready_to_ship: { label: "Ready to Ship", color: "text-sky-600 bg-sky-50 border-sky-200", icon: Package },
+  shipped: { label: "Shipped", color: "text-purple-600 bg-purple-50 border-purple-200", icon: Truck },
+  delivered: { label: "Delivered", color: "text-emerald-600 bg-emerald-50 border-emerald-200", icon: CheckCircle2 },
+  cancelled: { label: "Cancelled", color: "text-red-500 bg-red-50 border-red-200", icon: XCircle },
+  returned: { label: "Returned", color: "text-orange-600 bg-orange-50 border-orange-200", icon: RotateCcw },
 };
 
 const STEPS = ["pending", "confirmed", "processing", "ready_to_ship", "shipped", "delivered"];
@@ -113,44 +113,37 @@ export default function TrackOrderPage() {
   const isCancelledOrReturned = order && (order.status === "cancelled" || order.status === "returned");
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-white">
       {/* Hero */}
-      <section className="relative py-16 md:py-24">
-        <div className="absolute inset-0 pointer-events-none" style={{
-          background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(129,140,248,0.08) 0%, transparent 70%)"
-        }} />
+      <section className="relative py-16 md:py-24 bg-gray-50">
         <div className="relative max-w-2xl mx-auto px-4 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/[0.06] px-4 py-1.5 text-xs font-medium text-indigo-300/90 mb-6">
+          <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-1.5 text-xs font-medium text-amber-700 mb-6">
             <MapPin className="h-3 w-3" />
             Real-time Order Tracking
           </div>
-          <h1 className="text-3xl md:text-5xl font-bold tracking-tight mb-4">
-            <span className="bg-clip-text text-transparent" style={{
-              backgroundImage: "linear-gradient(to right, #fafafa, #a1a1aa)"
-            }}>
-              Track Your Order
-            </span>
+          <h1 className="text-3xl md:text-5xl font-bold tracking-tight mb-4 text-gray-900">
+            Track Your Order
           </h1>
-          <p className="text-muted-foreground mb-10">
+          <p className="text-gray-500 mb-10">
             Enter your order number to see the latest status and delivery updates
           </p>
 
           {/* Search Form */}
           <form onSubmit={handleTrack} className="relative max-w-lg mx-auto">
             <div className="relative">
-              <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/50" />
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
                 type="text"
                 value={orderNumber}
                 onChange={(e) => setOrderNumber(e.target.value.toUpperCase())}
                 placeholder="VP-ORD-20260315-001"
-                className="w-full h-14 pl-13 pr-32 rounded-2xl bg-secondary/80 border border-border text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/30 transition-all font-mono text-sm"
+                className="w-full h-14 pl-13 pr-32 rounded-2xl bg-white border border-gray-300 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all font-mono text-sm"
                 style={{ paddingLeft: "3.2rem" }}
               />
               <button
                 type="submit"
                 disabled={loading || !orderNumber.trim()}
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 px-5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 px-5 rounded-xl bg-[#d97706] hover:bg-[#b45309] text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
               >
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -166,7 +159,7 @@ export default function TrackOrderPage() {
 
           {/* Error */}
           {error && (
-            <div className="mt-6 p-4 rounded-xl bg-red-500/[0.06] border border-red-500/20 text-red-400 text-sm max-w-lg mx-auto">
+            <div className="mt-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-500 text-sm max-w-lg mx-auto">
               {error}
             </div>
           )}
@@ -179,11 +172,11 @@ export default function TrackOrderPage() {
           <div className="max-w-4xl mx-auto space-y-6">
 
             {/* Status Header Card */}
-            <div className="bg-card rounded-2xl border border-border p-6 md:p-8">
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 md:p-8">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Order Number</p>
-                  <p className="text-xl font-bold font-mono text-primary">{order.orderNumber}</p>
+                  <p className="text-sm text-gray-500 mb-1">Order Number</p>
+                  <p className="text-xl font-bold font-mono text-amber-600">{order.orderNumber}</p>
                 </div>
                 <div className={cn(
                   "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold",
@@ -198,10 +191,10 @@ export default function TrackOrderPage() {
               {!isCancelledOrReturned && (
                 <div className="relative">
                   {/* Progress bar background */}
-                  <div className="absolute top-4 left-0 right-0 h-0.5 bg-border" />
+                  <div className="absolute top-4 left-0 right-0 h-0.5 bg-gray-200" />
                   {/* Progress bar filled */}
                   <div
-                    className="absolute top-4 left-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-700"
+                    className="absolute top-4 left-0 h-0.5 bg-gradient-to-r from-amber-500 to-amber-600 transition-all duration-700"
                     style={{ width: `${Math.max(0, (currentStepIndex / (STEPS.length - 1)) * 100)}%` }}
                   />
                   {/* Steps */}
@@ -215,9 +208,9 @@ export default function TrackOrderPage() {
                           <div className={cn(
                             "w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-500",
                             isComplete
-                              ? "bg-indigo-500 border-indigo-500 text-white"
-                              : "bg-background border-border text-muted-foreground/30",
-                            isCurrent && "ring-4 ring-indigo-500/20"
+                              ? "bg-amber-500 border-amber-500 text-white"
+                              : "bg-white border-gray-200 text-gray-400",
+                            isCurrent && "ring-4 ring-amber-500/20"
                           )}>
                             {isComplete ? (
                               <CheckCircle2 className="h-4 w-4" />
@@ -227,7 +220,7 @@ export default function TrackOrderPage() {
                           </div>
                           <span className={cn(
                             "text-[10px] md:text-xs mt-2 text-center font-medium max-w-[60px] md:max-w-none",
-                            isComplete ? "text-foreground/80" : "text-muted-foreground/40"
+                            isComplete ? "text-gray-900" : "text-gray-400"
                           )}>
                             {config?.label || step}
                           </span>
@@ -243,17 +236,17 @@ export default function TrackOrderPage() {
               {/* Left: Timeline + Items */}
               <div className="lg:col-span-2 space-y-6">
                 {/* Timeline */}
-                <div className="bg-card rounded-2xl border border-border p-6">
-                  <h2 className="text-lg font-semibold mb-5 flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
+                <div className="bg-white rounded-2xl border border-gray-200 p-6">
+                  <h2 className="text-lg font-semibold mb-5 flex items-center gap-2 text-gray-900">
+                    <Clock className="h-4 w-4 text-gray-500" />
                     Tracking Timeline
                   </h2>
                   {order.timeline.length === 0 ? (
-                    <p className="text-sm text-muted-foreground/60 py-4 text-center">No tracking updates yet</p>
+                    <p className="text-sm text-gray-400 py-4 text-center">No tracking updates yet</p>
                   ) : (
                     <div className="relative pl-6">
                       {/* Vertical line */}
-                      <div className="absolute left-[7px] top-2 bottom-2 w-px bg-border" />
+                      <div className="absolute left-[7px] top-2 bottom-2 w-px bg-gray-200" />
                       <div className="space-y-6">
                         {[...order.timeline].reverse().map((event, i) => (
                           <div key={i} className="relative">
@@ -261,20 +254,20 @@ export default function TrackOrderPage() {
                             <div className={cn(
                               "absolute -left-6 top-1 w-3.5 h-3.5 rounded-full border-2",
                               i === 0
-                                ? "bg-indigo-500 border-indigo-500 shadow-[0_0_8px_rgba(129,140,248,0.4)]"
-                                : "bg-background border-border"
+                                ? "bg-amber-500 border-amber-500 shadow-[0_0_8px_rgba(217,119,6,0.4)]"
+                                : "bg-white border-gray-200"
                             )} />
                             <div>
                               <p className={cn(
                                 "text-sm font-medium",
-                                i === 0 ? "text-foreground" : "text-muted-foreground"
+                                i === 0 ? "text-gray-900" : "text-gray-500"
                               )}>
                                 {event.title}
                               </p>
                               {event.description && (
-                                <p className="text-xs text-muted-foreground/60 mt-0.5">{event.description}</p>
+                                <p className="text-xs text-gray-400 mt-0.5">{event.description}</p>
                               )}
-                              <p className="text-[11px] text-muted-foreground/40 mt-1 font-mono">
+                              <p className="text-[11px] text-gray-400 mt-1 font-mono">
                                 {formatDate(event.date)}
                               </p>
                             </div>
@@ -286,51 +279,51 @@ export default function TrackOrderPage() {
                 </div>
 
                 {/* Order Items */}
-                <div className="bg-card rounded-2xl border border-border p-6">
-                  <h2 className="text-lg font-semibold mb-5 flex items-center gap-2">
-                    <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                <div className="bg-white rounded-2xl border border-gray-200 p-6">
+                  <h2 className="text-lg font-semibold mb-5 flex items-center gap-2 text-gray-900">
+                    <ShoppingBag className="h-4 w-4 text-gray-500" />
                     Order Items
                   </h2>
                   <div className="space-y-3">
                     {order.items.map((item, i) => (
-                      <div key={i} className="flex items-center justify-between py-3 border-b border-border/50 last:border-0">
+                      <div key={i} className="flex items-center justify-between py-3 border-b border-gray-200 last:border-0">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{item.productName}</p>
+                          <p className="text-sm font-medium text-gray-900">{item.productName}</p>
                           {item.variantName && item.variantName !== "Default" && (
-                            <p className="text-xs text-muted-foreground/60">{item.variantName}</p>
+                            <p className="text-xs text-gray-400">{item.variantName}</p>
                           )}
                         </div>
                         <div className="flex items-center gap-4 flex-shrink-0">
-                          <span className="text-xs text-muted-foreground/50">x{item.quantity}</span>
-                          <span className="text-sm font-mono font-medium">{formatPrice(item.unitPrice * item.quantity)}</span>
+                          <span className="text-xs text-gray-400">x{item.quantity}</span>
+                          <span className="text-sm font-mono font-medium text-gray-900">{formatPrice(item.unitPrice * item.quantity)}</span>
                         </div>
                       </div>
                     ))}
                   </div>
                   {/* Totals */}
-                  <div className="mt-4 pt-4 border-t border-border space-y-1.5">
+                  <div className="mt-4 pt-4 border-t border-gray-200 space-y-1.5">
                     {order.discountAmount > 0 && (
                       <>
                         <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Subtotal</span>
-                          <span className="font-mono">{formatPrice(order.subtotalAmount)}</span>
+                          <span className="text-gray-500">Subtotal</span>
+                          <span className="font-mono text-gray-900">{formatPrice(order.subtotalAmount)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-emerald-400 flex items-center gap-1">
+                          <span className="text-green-600 flex items-center gap-1">
                             Discount
                             {order.couponCode && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 font-mono">
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-50 border border-green-200 font-mono">
                                 {order.couponCode}
                               </span>
                             )}
                           </span>
-                          <span className="text-emerald-400 font-mono">-{formatPrice(order.discountAmount)}</span>
+                          <span className="text-green-600 font-mono">-{formatPrice(order.discountAmount)}</span>
                         </div>
                       </>
                     )}
                     <div className="flex justify-between text-base font-bold pt-1">
-                      <span>Total</span>
-                      <span className="font-mono text-primary">{formatPrice(order.totalAmount)}</span>
+                      <span className="text-gray-900">Total</span>
+                      <span className="font-mono text-gray-900">{formatPrice(order.totalAmount)}</span>
                     </div>
                   </div>
                 </div>
@@ -339,29 +332,29 @@ export default function TrackOrderPage() {
               {/* Right: Info Cards */}
               <div className="space-y-6">
                 {/* Order Info */}
-                <div className="bg-card rounded-2xl border border-border p-6">
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-4">Order Details</h3>
+                <div className="bg-white rounded-2xl border border-gray-200 p-6">
+                  <h3 className="text-sm font-semibold text-gray-500 mb-4">Order Details</h3>
                   <div className="space-y-3">
                     <div>
-                      <p className="text-xs text-muted-foreground/50">Customer</p>
-                      <p className="text-sm font-medium">{order.customerName}</p>
+                      <p className="text-xs text-gray-400">Customer</p>
+                      <p className="text-sm font-medium text-gray-900">{order.customerName}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground/50">Order Date</p>
-                      <p className="text-sm font-mono">{formatDate(order.createdAt)}</p>
+                      <p className="text-xs text-gray-400">Order Date</p>
+                      <p className="text-sm font-mono text-gray-900">{formatDate(order.createdAt)}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground/50">Payment</p>
+                      <p className="text-xs text-gray-400">Payment</p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <CreditCard className="h-3.5 w-3.5 text-muted-foreground/50" />
-                        <span className="text-sm capitalize">{order.paymentMethod.replace("_", " ")}</span>
+                        <CreditCard className="h-3.5 w-3.5 text-gray-400" />
+                        <span className="text-sm capitalize text-gray-900">{order.paymentMethod.replace("_", " ")}</span>
                         <span className={cn(
                           "text-[10px] px-1.5 py-0.5 rounded-full border font-medium",
                           order.paymentStatus === "paid"
-                            ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+                            ? "text-green-600 bg-green-50 border-green-200"
                             : order.paymentStatus === "failed"
-                              ? "text-red-400 bg-red-500/10 border-red-500/20"
-                              : "text-amber-400 bg-amber-500/10 border-amber-500/20"
+                              ? "text-red-500 bg-red-50 border-red-200"
+                              : "text-amber-600 bg-amber-50 border-amber-200"
                         )}>
                           {order.paymentStatus}
                         </span>
@@ -372,20 +365,20 @@ export default function TrackOrderPage() {
 
                 {/* Shipment Info */}
                 {order.shipment && (
-                  <div className="bg-card rounded-2xl border border-border p-6">
-                    <h3 className="text-sm font-semibold text-muted-foreground mb-4 flex items-center gap-2">
+                  <div className="bg-white rounded-2xl border border-gray-200 p-6">
+                    <h3 className="text-sm font-semibold text-gray-500 mb-4 flex items-center gap-2">
                       <Truck className="h-4 w-4" />
                       Shipping Details
                     </h3>
                     <div className="space-y-3">
                       <div>
-                        <p className="text-xs text-muted-foreground/50">Courier</p>
-                        <p className="text-sm font-medium">{order.shipment.provider}</p>
+                        <p className="text-xs text-gray-400">Courier</p>
+                        <p className="text-sm font-medium text-gray-900">{order.shipment.provider}</p>
                       </div>
                       {order.shipment.trackingNumber && (
                         <div>
-                          <p className="text-xs text-muted-foreground/50">Tracking Number</p>
-                          <p className="text-sm font-mono">{order.shipment.trackingNumber}</p>
+                          <p className="text-xs text-gray-400">Tracking Number</p>
+                          <p className="text-sm font-mono text-gray-900">{order.shipment.trackingNumber}</p>
                         </div>
                       )}
                       {order.shipment.trackingUrl && (
@@ -393,7 +386,7 @@ export default function TrackOrderPage() {
                           href={order.shipment.trackingUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
+                          className="inline-flex items-center gap-1.5 text-sm text-amber-600 hover:text-amber-700 transition-colors"
                         >
                           Track on courier site
                           <ExternalLink className="h-3 w-3" />
@@ -401,14 +394,14 @@ export default function TrackOrderPage() {
                       )}
                       {order.shipment.shippedAt && (
                         <div>
-                          <p className="text-xs text-muted-foreground/50">Shipped On</p>
-                          <p className="text-sm font-mono">{formatDate(order.shipment.shippedAt)}</p>
+                          <p className="text-xs text-gray-400">Shipped On</p>
+                          <p className="text-sm font-mono text-gray-900">{formatDate(order.shipment.shippedAt)}</p>
                         </div>
                       )}
                       {order.shipment.estimatedDelivery && (
                         <div>
-                          <p className="text-xs text-muted-foreground/50">Est. Delivery</p>
-                          <p className="text-sm font-mono">{formatDate(order.shipment.estimatedDelivery)}</p>
+                          <p className="text-xs text-gray-400">Est. Delivery</p>
+                          <p className="text-sm font-mono text-gray-900">{formatDate(order.shipment.estimatedDelivery)}</p>
                         </div>
                       )}
                     </div>
@@ -416,17 +409,17 @@ export default function TrackOrderPage() {
                 )}
 
                 {/* Help */}
-                <div className="bg-card rounded-2xl border border-border p-6">
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">Need Help?</h3>
-                  <p className="text-xs text-muted-foreground/60 mb-3">
+                <div className="bg-white rounded-2xl border border-gray-200 p-6">
+                  <h3 className="text-sm font-semibold text-gray-500 mb-2">Need Help?</h3>
+                  <p className="text-xs text-gray-400 mb-3">
                     Contact us for any queries about your order.
                   </p>
                   <div className="space-y-1.5 text-sm">
-                    <p className="text-muted-foreground">
-                      Email: <span className="text-foreground">support@vpcomputer.in</span>
+                    <p className="text-gray-500">
+                      Email: <span className="text-gray-900">support@vpcomputer.in</span>
                     </p>
-                    <p className="text-muted-foreground">
-                      Phone: <span className="text-foreground">+91 98XXX XXXXX</span>
+                    <p className="text-gray-500">
+                      Phone: <span className="text-gray-900">+91 98XXX XXXXX</span>
                     </p>
                   </div>
                 </div>

@@ -14,10 +14,12 @@ import {
   ChevronDown,
   Search,
   Grid3X3,
+  Heart,
 } from "lucide-react";
 import { cn } from "@/lib/utils/helpers";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
+import { useWishlist } from "@/hooks/useWishlist";
 import CartSidebar from "./CartSidebar";
 
 const NAV_LINKS = [
@@ -38,6 +40,7 @@ export default function Header() {
   const { items, totalItems, totalPrice, updateQuantity, removeItem } =
     useCart();
   const { user, loading, openAuthModal, logout } = useAuth();
+  const { totalItems: wishlistCount } = useWishlist();
 
   function isActive(href: string) {
     if (href === "/") return pathname === "/";
@@ -90,7 +93,7 @@ export default function Header() {
               <input
                 type="text"
                 placeholder="Search for laptops, processors, RAM, motherboards..."
-                className="w-full h-10 pl-10 pr-4 rounded-lg border border-[#e5e7eb] bg-white text-[#1a1a1a] placeholder:text-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#EF9822]/40 focus:border-[#EF9822] transition-all text-sm"
+                className="w-full h-10 pl-10 pr-4 rounded-lg border border-[#e5e7eb] bg-white text-[#1a1a1a] placeholder:text-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#d97706]/40 focus:border-[#d97706] transition-all text-sm"
               />
             </div>
           </div>
@@ -107,7 +110,7 @@ export default function Header() {
                       className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-[#4b5563] transition-colors hover:bg-[#f5f5f5] hover:text-[#1a1a1a]"
                       aria-label="User menu"
                     >
-                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#EF9822]/15 text-[#EF9822]">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#d97706]/15 text-[#d97706]">
                         <span className="text-xs font-bold">
                           {user.name.charAt(0).toUpperCase()}
                         </span>
@@ -173,6 +176,20 @@ export default function Header() {
               </div>
             )}
 
+            {/* Wishlist Button */}
+            <Link
+              href="/wishlist"
+              className="relative flex h-10 w-10 items-center justify-center rounded-lg text-[#4b5563] transition-colors hover:bg-[#f5f5f5] hover:text-[#1a1a1a]"
+              aria-label="Wishlist"
+            >
+              <Heart className="h-5 w-5" />
+              {wishlistCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#d97706] px-1 text-[10px] font-bold text-white">
+                  {wishlistCount > 99 ? "99+" : wishlistCount}
+                </span>
+              )}
+            </Link>
+
             {/* Cart Button */}
             <button
               onClick={() => setCartOpen(true)}
@@ -181,7 +198,7 @@ export default function Header() {
             >
               <ShoppingBag className="h-5 w-5" />
               {totalItems > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#EF9822] px-1 text-[10px] font-bold text-white">
+                <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#d97706] px-1 text-[10px] font-bold text-white">
                   {totalItems > 99 ? "99+" : totalItems}
                 </span>
               )}
@@ -209,7 +226,7 @@ export default function Header() {
             <input
               type="text"
               placeholder="Search products..."
-              className="w-full h-9 pl-10 pr-4 rounded-lg border border-[#e5e7eb] bg-white text-[#1a1a1a] placeholder:text-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#EF9822]/40 focus:border-[#EF9822] transition-all text-sm"
+              className="w-full h-9 pl-10 pr-4 rounded-lg border border-[#e5e7eb] bg-white text-[#1a1a1a] placeholder:text-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#d97706]/40 focus:border-[#d97706] transition-all text-sm"
             />
           </div>
         </div>
@@ -221,7 +238,7 @@ export default function Header() {
           {/* All Categories button */}
           <Link
             href="/categories"
-            className="flex items-center gap-2 bg-[#EF9822] text-white font-semibold text-sm px-5 py-2.5 hover:bg-[#d9881d] transition-colors"
+            className="flex items-center gap-2 bg-[#d97706] text-white font-semibold text-sm px-5 py-2.5 hover:bg-[#b45309] transition-colors"
           >
             <Grid3X3 className="h-4 w-4" />
             All Categories
@@ -236,8 +253,8 @@ export default function Header() {
                 className={cn(
                   "px-4 py-2.5 text-sm font-medium transition-colors",
                   isActive(link.href)
-                    ? "text-[#EF9822] border-b-2 border-[#EF9822]"
-                    : "text-[#4b5563] hover:text-[#EF9822]"
+                    ? "text-[#d97706] border-b-2 border-[#d97706]"
+                    : "text-[#4b5563] hover:text-[#d97706]"
                 )}
               >
                 {link.label}
@@ -258,7 +275,7 @@ export default function Header() {
           <Link
             href="/categories"
             onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center gap-2 rounded-lg bg-[#EF9822] text-white px-4 py-2.5 text-sm font-semibold mb-1"
+            className="flex items-center gap-2 rounded-lg bg-[#d97706] text-white px-4 py-2.5 text-sm font-semibold mb-1"
           >
             <Grid3X3 className="h-4 w-4" />
             All Categories
@@ -271,7 +288,7 @@ export default function Header() {
               className={cn(
                 "rounded-lg px-4 py-2.5 text-sm font-medium transition-colors",
                 isActive(link.href)
-                  ? "bg-[#FFF3E0] text-[#EF9822]"
+                  ? "bg-[#FFF3E0] text-[#d97706]"
                   : "text-[#4b5563] hover:bg-[#f5f5f5] hover:text-[#1a1a1a]"
               )}
             >

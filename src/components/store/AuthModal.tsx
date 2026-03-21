@@ -10,7 +10,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils/helpers";
 
@@ -148,22 +147,22 @@ export default function AuthModal() {
   }
 
   const inputClasses =
-    "w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30 transition-colors";
+    "w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/30 transition-colors";
 
   return (
     <Dialog open={authModalOpen} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="border-border bg-background sm:max-w-md"
+        className="border-gray-200 bg-white sm:max-w-md"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
           handleAutoFocus();
         }}
       >
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-foreground">
+          <DialogTitle className="text-xl font-bold text-gray-900">
             {tab === "login" ? "Welcome Back" : "Create Account"}
           </DialogTitle>
-          <DialogDescription className="text-muted-foreground">
+          <DialogDescription className="text-gray-500">
             {tab === "login"
               ? "Sign in to your V&P Computer account"
               : "Join V&P Computer to start shopping"}
@@ -171,15 +170,15 @@ export default function AuthModal() {
         </DialogHeader>
 
         {/* Tab Switcher */}
-        <div className="flex rounded-lg border border-border bg-card p-1">
+        <div className="flex rounded-lg border border-gray-200 bg-gray-50 p-1">
           <button
             type="button"
             onClick={() => switchTab("login")}
             className={cn(
               "flex-1 rounded-md py-2 text-sm font-medium transition-all",
               tab === "login"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
+                ? "bg-[#d97706] text-white shadow-sm"
+                : "text-gray-500 hover:text-gray-900"
             )}
           >
             Sign In
@@ -190,8 +189,8 @@ export default function AuthModal() {
             className={cn(
               "flex-1 rounded-md py-2 text-sm font-medium transition-all",
               tab === "register"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
+                ? "bg-[#d97706] text-white shadow-sm"
+                : "text-gray-500 hover:text-gray-900"
             )}
           >
             Create Account
@@ -200,7 +199,7 @@ export default function AuthModal() {
 
         {/* Error Banner */}
         {error && (
-          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-500">
             {error}
           </div>
         )}
@@ -209,7 +208,7 @@ export default function AuthModal() {
         {tab === "login" && (
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+              <label className="mb-1.5 block text-sm font-medium text-gray-500">
                 Email
               </label>
               <input
@@ -225,13 +224,13 @@ export default function AuthModal() {
 
             <div>
               <div className="mb-1.5 flex items-center justify-between">
-                <label className="text-sm font-medium text-muted-foreground">
+                <label className="text-sm font-medium text-gray-500">
                   Password
                 </label>
                 <button
                   type="button"
                   onClick={handleForgotPassword}
-                  className="text-xs text-primary hover:text-primary/80 transition-colors"
+                  className="text-xs text-amber-600 hover:text-amber-700 transition-colors"
                 >
                   Forgot password?
                 </button>
@@ -249,7 +248,7 @@ export default function AuthModal() {
                 <button
                   type="button"
                   onClick={() => setShowLoginPassword(!showLoginPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-900 transition-colors"
                 >
                   {showLoginPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -260,10 +259,10 @@ export default function AuthModal() {
               </div>
             </div>
 
-            <Button
+            <button
               type="submit"
               disabled={submitting}
-              className="w-full h-11 text-sm font-semibold"
+              className="w-full h-11 text-sm font-semibold rounded-lg bg-[#d97706] hover:bg-[#b45309] text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {submitting ? (
                 <>
@@ -273,7 +272,7 @@ export default function AuthModal() {
               ) : (
                 "Sign In"
               )}
-            </Button>
+            </button>
           </form>
         )}
 
@@ -281,8 +280,8 @@ export default function AuthModal() {
         {tab === "register" && (
           <form onSubmit={handleRegister} className="space-y-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
-                Full Name <span className="text-red-400">*</span>
+              <label className="mb-1.5 block text-sm font-medium text-gray-500">
+                Full Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -296,8 +295,8 @@ export default function AuthModal() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
-                Email <span className="text-red-400">*</span>
+              <label className="mb-1.5 block text-sm font-medium text-gray-500">
+                Email <span className="text-red-500">*</span>
               </label>
               <input
                 type="email"
@@ -311,9 +310,9 @@ export default function AuthModal() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
+              <label className="mb-1.5 block text-sm font-medium text-gray-500">
                 Phone{" "}
-                <span className="text-muted-foreground/60">(optional)</span>
+                <span className="text-gray-400">(optional)</span>
               </label>
               <input
                 type="tel"
@@ -327,8 +326,8 @@ export default function AuthModal() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
-                Password <span className="text-red-400">*</span>
+              <label className="mb-1.5 block text-sm font-medium text-gray-500">
+                Password <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <input
@@ -343,7 +342,7 @@ export default function AuthModal() {
                 <button
                   type="button"
                   onClick={() => setShowRegPassword(!showRegPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-900 transition-colors"
                 >
                   {showRegPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -355,8 +354,8 @@ export default function AuthModal() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
-                Confirm Password <span className="text-red-400">*</span>
+              <label className="mb-1.5 block text-sm font-medium text-gray-500">
+                Confirm Password <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <input
@@ -371,7 +370,7 @@ export default function AuthModal() {
                 <button
                   type="button"
                   onClick={() => setShowRegConfirm(!showRegConfirm)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-900 transition-colors"
                 >
                   {showRegConfirm ? (
                     <EyeOff className="h-4 w-4" />
@@ -382,10 +381,10 @@ export default function AuthModal() {
               </div>
             </div>
 
-            <Button
+            <button
               type="submit"
               disabled={submitting}
-              className="w-full h-11 text-sm font-semibold"
+              className="w-full h-11 text-sm font-semibold rounded-lg bg-[#d97706] hover:bg-[#b45309] text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {submitting ? (
                 <>
@@ -395,7 +394,7 @@ export default function AuthModal() {
               ) : (
                 "Create Account"
               )}
-            </Button>
+            </button>
           </form>
         )}
       </DialogContent>
