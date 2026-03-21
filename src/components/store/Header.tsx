@@ -112,11 +112,11 @@ export default function Header() {
                     >
                       <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#d97706]/15 text-[#d97706]">
                         <span className="text-xs font-bold">
-                          {user.name.charAt(0).toUpperCase()}
+                          {(user.name || user.email || "U").charAt(0).toUpperCase()}
                         </span>
                       </div>
                       <span className="hidden text-[#1a1a1a] sm:inline max-w-[100px] truncate">
-                        {user.name.split(" ")[0]}
+                        {(user.name || user.email || "User").split(" ")[0]}
                       </span>
                       <ChevronDown
                         className={cn(

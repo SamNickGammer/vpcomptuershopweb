@@ -5,6 +5,7 @@ import Footer from "@/components/store/Footer";
 import AuthModal from "@/components/store/AuthModal";
 import { AuthProvider } from "@/hooks/useAuth";
 import { WishlistProvider } from "@/hooks/useWishlist";
+import { CartProvider } from "@/hooks/useCart";
 import { Toaster } from "sonner";
 
 export default function StoreLayout({
@@ -14,6 +15,7 @@ export default function StoreLayout({
 }) {
   return (
     <AuthProvider>
+      <CartProvider>
       <WishlistProvider>
         <div className="store-theme flex min-h-screen flex-col bg-background text-foreground">
           <Header />
@@ -23,6 +25,7 @@ export default function StoreLayout({
         <AuthModal />
         <Toaster theme="light" position="top-right" richColors />
       </WishlistProvider>
+      </CartProvider>
     </AuthProvider>
   );
 }

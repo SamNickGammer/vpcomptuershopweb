@@ -230,44 +230,40 @@ function ProductCard({ product }: { product: ProductListItem }) {
           </span>
         )}
 
-        <h3 className="text-[13px] font-medium leading-snug line-clamp-2 text-gray-800 group-hover:text-[#c47e18] transition-colors min-h-[36px] mb-2">
+        <h3 className="text-[13px] font-medium leading-snug line-clamp-2 text-gray-800 group-hover:text-gray-900 transition-colors min-h-[36px] mb-2">
           {product.name}
         </h3>
 
-        <div className="flex items-baseline gap-1.5 mb-3 mt-auto">
-          <span className="text-base font-bold text-gray-900">
-            {formatPrice(product.price)}
-          </span>
-          {hasDiscount && (
-            <span className="text-xs text-gray-400 line-through">
-              {formatPrice(product.compareAtPrice!)}
-            </span>
+        {/* Price + Stock + Cart Icon */}
+        <div className="flex items-center justify-between mt-auto">
+          <div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-base font-bold text-gray-900">
+                {formatPrice(product.price)}
+              </span>
+              {hasDiscount && (
+                <span className="text-xs text-gray-400 line-through">
+                  {formatPrice(product.compareAtPrice!)}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1 mt-1">
+              <span className={cn("w-1.5 h-1.5 rounded-full", product.inStock ? "bg-green-500" : "bg-red-400")} />
+              <span className={cn("text-[10px] font-medium", product.inStock ? "text-green-600" : "text-red-500")}>
+                {product.inStock ? "In Stock" : "Out of Stock"}
+              </span>
+            </div>
+          </div>
+          {product.inStock && (
+            <button
+              onClick={handleAddToCart}
+              className="p-2.5 rounded-lg bg-gray-900 hover:bg-gray-800 text-white transition-colors"
+              title="Add to Cart"
+            >
+              <ShoppingCart className="h-4 w-4" />
+            </button>
           )}
         </div>
-
-        {/* Stock */}
-        <div className="flex items-center gap-1 mb-3">
-          <span className={cn("w-1.5 h-1.5 rounded-full", product.inStock ? "bg-green-500" : "bg-red-400")} />
-          <span className={cn("text-[11px] font-medium", product.inStock ? "text-green-600" : "text-red-500")}>
-            {product.inStock ? "In Stock" : "Out of Stock"}
-          </span>
-        </div>
-
-        {/* Add to Cart */}
-        {product.inStock ? (
-          <button
-            onClick={handleAddToCart}
-            className="w-full flex items-center justify-center gap-1.5 bg-gray-900 hover:bg-gray-800 text-white text-xs font-medium py-2.5 rounded-lg transition-colors"
-          >
-            <ShoppingCart className="h-3.5 w-3.5" />
-            Add to Cart
-          </button>
-        ) : (
-          <div className="w-full flex items-center justify-center gap-1 text-xs text-gray-400 font-medium py-2.5 rounded-lg border border-gray-200 bg-gray-50">
-            View Details
-            <ArrowRight className="h-3 w-3" />
-          </div>
-        )}
       </div>
     </Link>
   );
