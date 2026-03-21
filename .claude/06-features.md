@@ -43,22 +43,22 @@ FUTURE    — planned but not in current scope
 
 | Feature                          | Status  | Notes                                       |
 |----------------------------------|---------|---------------------------------------------|
-| Supabase browser client          | PENDING | src/lib/supabase/client.ts                  |
-| Supabase server client           | PENDING | src/lib/supabase/server.ts                  |
-| formatPrice() helper             | PENDING | paise → ₹ display                          |
-| slugify() helper                 | PENDING |                                             |
-| cn() utility                     | PENDING | clsx + tailwind-merge                       |
-| generateOrderNumber()            | PENDING | VP-ORD-YYYYMMDD-NNN                         |
-| generateInternalTrackingCode()   | PENDING | VP-XXXXXX                                   |
+| Supabase browser client          | DONE    | src/lib/supabase/client.ts                  |
+| Supabase server client           | DONE    | src/lib/supabase/server.ts                  |
+| formatPrice() helper             | DONE    | paise → ₹ display                          |
+| slugify() helper                 | DONE    |                                             |
+| cn() utility                     | DONE    | clsx + tailwind-merge                       |
+| generateOrderNumber()            | DONE    | VP-ORD-YYYYMMDD-NNN                         |
+| generateInternalTrackingCode()   | DONE    | VP-XXXXXX                                   |
 
 ### Admin Panel — Layout
 
 | Feature                          | Status  | Notes                                       |
 |----------------------------------|---------|---------------------------------------------|
-| Admin layout (sidebar + header)  | PENDING | Shared across all admin pages               |
+| Admin layout (sidebar + header)  | DONE    | Shared across all admin pages               |
 | Admin dashboard page             | DONE    | Stats: orders today, revenue, low stock     |
 | Admin analytics page             | DONE    | Revenue charts, orders by status, top products, inventory, coupons |
-| Admin sidebar navigation         | PENDING | Links to all admin sections                 |
+| Admin sidebar navigation         | DONE    | Links to all admin sections                 |
 
 ### Admin Panel — Products
 
@@ -68,7 +68,7 @@ FUTURE    — planned but not in current scope
 | Add product page                 | DONE    | Form with variants, specs, images           |
 | Edit product page                | DONE    | Pre-filled form, delete support             |
 | Product image upload             | DONE    | Supabase Storage upload + URL input         |
-| Product variants management      | DONE    | Add/edit/delete variants per product        |
+| Product variants management      | DONE    | Variants stored as jsonb on product         |
 | Product specs management         | DONE    | Key-value pairs with quick-add chips        |
 | Product API (admin CRUD)         | DONE    | POST/GET/PUT/DELETE /api/admin/products     |
 
@@ -78,42 +78,58 @@ FUTURE    — planned but not in current scope
 |----------------------------------|---------|---------------------------------------------|
 | Category list page               | DONE    | Table view with image, parent, status       |
 | Add/edit category                | DONE    | Dialog with image upload, parent select     |
-| Category API                     | PENDING |                                             |
+| Category API                     | DONE    | CRUD via /api/admin/categories              |
 
 ### Admin Panel — Inventory
 
 | Feature                          | Status  | Notes                                       |
 |----------------------------------|---------|---------------------------------------------|
-| Inventory list page              | PENDING | Stock levels per variant, low stock alerts  |
-| Update stock form                | PENDING | Add/remove stock with reason                |
-| Inventory history view           | PENDING | Audit trail of all stock changes            |
-| Inventory API                    | PENDING |                                             |
+| Inventory management             | DONE    | Stock tracked on products.stock directly    |
+| Update stock form                | DONE    | Add/remove stock with reason                |
+| Inventory history view           | DONE    | Audit trail of all stock changes            |
+| Inventory API                    | DONE    |                                             |
 
 ### Admin Panel — Orders
 
 | Feature                          | Status  | Notes                                       |
 |----------------------------------|---------|---------------------------------------------|
-| Orders list page                 | PENDING | Table with status filter, search            |
-| Order detail page                | PENDING | Full order info + tracking timeline         |
-| Update order status              | PENDING | Creates tracking_event row                  |
-| Add tracking note                | PENDING |                                             |
-| Create external shipment         | PENDING | Enter courier + AWB + tracking URL          |
-| Orders API (admin)               | PENDING |                                             |
+| Orders list page                 | DONE    | Table with status filter, search            |
+| Order detail page                | DONE    | Full order info + tracking timeline         |
+| Update order status              | DONE    | Creates tracking_event row                  |
+| Payment management               | DONE    | Mark paid, payment method, reference        |
+| Add tracking note                | DONE    |                                             |
+| Create external shipment         | DONE    | Enter courier + AWB + tracking URL          |
+| Orders API (admin)               | DONE    |                                             |
 
-### Customer Storefront (Future Sprint)
+### Admin Panel — Coupons
 
 | Feature                          | Status  | Notes                                       |
 |----------------------------------|---------|---------------------------------------------|
-| Homepage                         | FUTURE  |                                             |
-| Product listing page             | DONE    | Filters (category, condition, price), sort, pagination |
+| Coupon list page                 | DONE    | Table with search, status filter            |
+| Add/edit coupon                  | DONE    | Percentage/fixed, min order, usage limits   |
+| Coupon API                       | DONE    | CRUD + validation at checkout               |
+
+### Customer Auth
+
+| Feature                          | Status  | Notes                                       |
+|----------------------------------|---------|---------------------------------------------|
+| Customer registration            | DONE    | POST /api/auth/customer/register            |
+| Customer login                   | DONE    | POST /api/auth/customer/login               |
+| Customer JWT + cookie            | DONE    | vp_customer_token, httpOnly, 30 days        |
+| Customer auth helpers            | DONE    | src/lib/auth/customer.ts                    |
+
+### Customer Storefront (WIP)
+
+| Feature                          | Status  | Notes                                       |
+|----------------------------------|---------|---------------------------------------------|
+| Homepage                         | DONE    | White theme, mdcomputers.in style           |
+| Product listing page             | DONE    | Variants listed as separate products, filters, sort, pagination |
 | Product detail page              | DONE    | Variant selector, image gallery, specs, cart |
-| Shopping cart                    | FUTURE  |                                             |
-| Checkout flow                    | FUTURE  |                                             |
-| Order placement API              | FUTURE  |                                             |
-| Order confirmation page          | FUTURE  |                                             |
-| Customer tracking page           | FUTURE  | Enter VP-XXXXXX to see order status         |
-| Customer auth (Supabase Auth)    | FUTURE  |                                             |
-| Customer order history           | FUTURE  |                                             |
+| Shopping cart                    | DONE    | localStorage-based cart                     |
+| Checkout flow                    | DONE    | COD payment, coupon support                 |
+| Order placement API              | DONE    | POST /api/orders                            |
+| Order tracking page              | DONE    | Enter VP-XXXXXX to see order status         |
+| Customer dashboard               | DONE    | Order history, account details              |
 
 ### Payments (Future)
 
@@ -135,47 +151,25 @@ FUTURE    — planned but not in current scope
 
 ## What To Build Next (ordered)
 
-Build in this exact order — each step depends on the previous:
+Most core features are complete. Remaining work:
 
 ```
-Step 1 — Supabase clients
-  src/lib/supabase/client.ts
-  src/lib/supabase/server.ts
+Step 1 — Online payments
+  Razorpay integration
+  Payment webhook handler
+  Refund handling
 
-Step 2 — Utility helpers
-  src/lib/utils/helpers.ts     (formatPrice, slugify, cn, generateOrderNumber)
-  src/lib/utils/tracking.ts    (generateInternalTrackingCode)
-  src/types/index.ts           (ApiResponse<T> and other shared types)
+Step 2 — Notifications
+  Order confirmation email
+  Shipping update email
+  Low stock alert email
 
-Step 3 — Admin layout
-  src/components/admin/layout/Sidebar.tsx
-  src/components/admin/layout/Header.tsx
-  src/app/(admin)/admin/layout.tsx
-
-Step 4 — Admin dashboard
-  src/app/(admin)/admin/dashboard/page.tsx
-  (stats: total orders, revenue today, low stock items, recent orders)
-
-Step 5 — Categories
-  Category CRUD API
-  Category list + add/edit UI
-
-Step 6 — Products
-  Product CRUD API
-  Product list page
-  Add/edit product form (with variants, specs, image upload)
-
-Step 7 — Inventory
-  Inventory API
-  Inventory list + stock update UI
-
-Step 8 — Orders + Tracking
-  Orders list page
-  Order detail page
-  Status update + tracking event creation
-  External shipment creation
+Step 3 — Polish & optimization
+  SEO meta tags
+  Performance optimization
+  Mobile responsiveness audit
 ```
 
 ---
 
-Last updated: 2026-03-19 — Storefront product listing page and product detail page with variant selector created.
+Last updated: 2026-03-22 — All admin features, customer auth, storefront, cart, checkout, and order tracking marked DONE.

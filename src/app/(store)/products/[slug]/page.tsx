@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ProductImage } from "@/components/ui/product-image";
 import {
   ChevronRight,
@@ -27,6 +28,9 @@ type ProductSpec = { key: string; value: string };
 type ProductVariant = {
   variantId: string;
   name: string;
+  displayName: string;
+  label: string;
+  description: string;
   sku: string;
   price: number;
   compareAtPrice: number | null;
@@ -60,6 +64,7 @@ type ProductData = {
   createdAt: string;
   updatedAt: string;
   variants: ProductVariant[];
+  selectedVariantId: string | null;
 };
 
 // ── Condition config ─────────────────────────────────────────────────────────
@@ -223,6 +228,8 @@ export default function ProductDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = React.use(params);
+  const searchParams = useSearchParams();
+  const variantParam = searchParams.get("variant");
 
   const [product, setProduct] = useState<ProductData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -241,10 +248,17 @@ export default function ProductDetailPage({
     async function fetchProduct() {
       setLoading(true);
       try {
-        const res = await fetch(`/api/products/${slug}`);
+        const url = variantParam
+          ? `/api/products/${slug}?variant=${encodeURIComponent(variantParam)}`
+          : `/api/products/${slug}`;
+        const res = await fetch(url);
         const data = await res.json();
         if (data.success) {
           setProduct(data.data);
+          // Use the API's selectedVariantId (respects ?variant= param)
+          if (data.data.selectedVariantId) {
+            setSelectedVariantId(data.data.selectedVariantId);
+          }
         } else {
           setNotFound(true);
         }
@@ -255,12 +269,14 @@ export default function ProductDetailPage({
       }
     }
     fetchProduct();
-  }, [slug]);
+  }, [slug, variantParam]);
 
-  // ── Initialize default variant selection when product loads ────────────
+  // ── Initialize default variant selection when product loads (fallback) ─
 
   useEffect(() => {
     if (!product) return;
+    // Only set if not already set (API response should have set it)
+    if (selectedVariantId) return;
 
     if (product.variants.length > 0) {
       const defaultVariant =
@@ -269,7 +285,7 @@ export default function ProductDetailPage({
     } else {
       setSelectedVariantId(null);
     }
-  }, [product]);
+  }, [product, selectedVariantId]);
 
   // ── Find the currently selected variant ────────────────────────────────
 
@@ -352,7 +368,7 @@ export default function ProductDetailPage({
     const cartVariantId = selectedVariant
       ? selectedVariant.variantId
       : product.id;
-    const cartVariantName = selectedVariant ? selectedVariant.name : "Default";
+    const cartVariantName = selectedVariant ? (selectedVariant.displayName || selectedVariant.name) : "Default";
     const cartImage =
       selectedVariant && selectedVariant.images.length > 0
         ? selectedVariant.images[0].url
@@ -404,7 +420,7 @@ export default function ProductDetailPage({
             Products
           </Link>
           <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-          <span className="text-[#1a1a1a] truncate">{product.name}</span>
+          <span className="text-[#1a1a1a] truncate">{selectedVariant?.displayName || product.name}</span>
         </nav>
 
         {/* Two-column layout */}
@@ -422,8 +438,13 @@ export default function ProductDetailPage({
                 </Badge>
               )}
               <h1 className="text-2xl md:text-3xl font-bold text-[#1a1a1a] leading-tight">
-                {product.name}
+                {selectedVariant?.displayName || product.name}
               </h1>
+              {selectedVariant?.label && (
+                <span className="inline-block text-xs font-medium text-gray-500 bg-gray-100 rounded-full px-3 py-1">
+                  {selectedVariant.label}
+                </span>
+              )}
             </div>
 
             {/* Price */}
@@ -575,13 +596,80 @@ export default function ProductDetailPage({
             )}
 
             {/* Description */}
-            {product.description && (
+            {(selectedVariant?.description || product.description) && (
               <div className="border-t border-[#e5e7eb] pt-6">
                 <h2 className="text-lg font-semibold text-[#1a1a1a] mb-4">
                   Description
                 </h2>
                 <div className="prose prose-sm max-w-none text-gray-600 leading-relaxed whitespace-pre-line">
-                  {product.description}
+                  {selectedVariant?.description || product.description}
+                </div>
+              </div>
+            )}
+
+            {/* Other Variants */}
+            {product.variants.length > 1 && (
+              <div className="border-t border-[#e5e7eb] pt-6">
+                <h2 className="text-lg font-semibold text-[#1a1a1a] mb-4">
+                  Other Variants
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {product.variants
+                    .filter((v) => v.variantId !== selectedVariantId)
+                    .map((v) => (
+                      <Link
+                        key={v.variantId}
+                        href={`/products/${product.slug}?variant=${v.variantId}`}
+                        className="flex items-center gap-3 rounded-xl border border-[#e5e7eb] p-3 hover:border-[#EF9822]/40 hover:shadow-sm transition-all"
+                      >
+                        {v.images.length > 0 ? (
+                          <div className="w-14 h-14 rounded-lg overflow-hidden bg-[#f9fafb] border border-[#e5e7eb] shrink-0">
+                            <ProductImage
+                              src={v.images[0].url}
+                              alt={v.images[0].altText || v.displayName}
+                              width={56}
+                              height={56}
+                              className="object-cover w-full h-full"
+                            />
+                          </div>
+                        ) : product.images.length > 0 ? (
+                          <div className="w-14 h-14 rounded-lg overflow-hidden bg-[#f9fafb] border border-[#e5e7eb] shrink-0">
+                            <ProductImage
+                              src={product.images[0].url}
+                              alt={product.images[0].altText || v.displayName}
+                              width={56}
+                              height={56}
+                              className="object-cover w-full h-full"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-14 h-14 rounded-lg bg-[#f9fafb] border border-[#e5e7eb] flex items-center justify-center shrink-0">
+                            <Package className="h-5 w-5 text-gray-300" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-[#1a1a1a] truncate">
+                            {v.displayName || `${product.name} ${v.name}`}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-sm font-bold text-[#EF9822]">
+                              {formatPrice(v.price)}
+                            </span>
+                            <span
+                              className={cn(
+                                "text-[10px] font-medium",
+                                v.stock > 0
+                                  ? "text-emerald-600"
+                                  : "text-red-500"
+                              )}
+                            >
+                              {v.stock > 0 ? "In Stock" : "Out of Stock"}
+                            </span>
+                          </div>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-gray-300 shrink-0" />
+                      </Link>
+                    ))}
                 </div>
               </div>
             )}

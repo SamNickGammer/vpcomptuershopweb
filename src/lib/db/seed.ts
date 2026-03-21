@@ -1097,6 +1097,9 @@ async function seed() {
       return {
         variantId: crypto.randomUUID(),
         name: v.name,
+        displayName: `${p.name} ${v.name}`.trim(),
+        label: "",
+        description: "",
         sku,
         price: paise(v.price),
         compareAtPrice: v.compareAtPrice ? paise(v.compareAtPrice) : null,

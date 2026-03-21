@@ -2,13 +2,18 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { products, categories } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
+import type { ProductVariantData } from "@/lib/db/schema/products";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
     const { slug } = await params;
+
+    // Check for ?variant=variantId query param
+    const url = new URL(request.url);
+    const requestedVariantId = url.searchParams.get("variant");
 
     // Get the product with category
     const productRows = await db
@@ -33,18 +38,7 @@ export async function GET(
     const p = row.product;
 
     // Filter active variants from JSONB
-    const allVariants = (p.variants ?? []) as Array<{
-      variantId: string;
-      name: string;
-      sku: string;
-      price: number;
-      compareAtPrice?: number | null;
-      images: Array<{ url: string; altText?: string }>;
-      specs: Array<{ key: string; value: string }>;
-      stock: number;
-      isDefault?: boolean;
-      isActive?: boolean;
-    }>;
+    const allVariants = (p.variants ?? []) as ProductVariantData[];
 
     const activeVariants = allVariants
       .filter((v) => v.isActive !== false)
@@ -52,6 +46,21 @@ export async function GET(
         ...v,
         inStock: v.stock > 0,
       }));
+
+    // Determine which variant should be pre-selected
+    let selectedVariantId: string | null = null;
+    if (activeVariants.length > 0) {
+      if (
+        requestedVariantId &&
+        activeVariants.some((v) => v.variantId === requestedVariantId)
+      ) {
+        selectedVariantId = requestedVariantId;
+      } else {
+        const defaultVariant =
+          activeVariants.find((v) => v.isDefault) ?? activeVariants[0];
+        selectedVariantId = defaultVariant.variantId;
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -79,6 +88,7 @@ export async function GET(
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
         variants: activeVariants,
+        selectedVariantId,
       },
     });
   } catch (error) {

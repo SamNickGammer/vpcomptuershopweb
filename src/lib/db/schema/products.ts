@@ -21,10 +21,14 @@ export const conditionEnum = pgEnum("condition", [
 // ── Variant type (stored as JSONB array on products) ──────────────────────────
 // Each variant is a sellable configuration of the same product.
 // Example: Acer UP200 Pendrive → variants: [{name:"8GB", price:399}, {name:"32GB", price:699}]
-// In the storefront, each variant appears as a separate listing.
+// In the storefront, each variant appears as a SEPARATE product listing.
+// displayName = "Acer UP200 Pendrive 8GB" (product.name + variant.name, editable)
 export type ProductVariantData = {
   variantId: string;
-  name: string; // "8GB", "Black / 16GB RAM", etc.
+  name: string; // short variant label: "8GB", "Black", "16GB/512GB"
+  displayName: string; // full name shown on storefront: "Acer UP200 Pendrive 8GB"
+  label: string; // top-level label/tag: "Storage", "Color", "Configuration"
+  description: string; // variant-specific description
   sku: string;
   price: number; // paise
   compareAtPrice?: number | null;

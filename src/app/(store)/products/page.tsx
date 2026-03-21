@@ -43,21 +43,20 @@ type CategoryItem = {
 
 type ProductListItem = {
   id: string;
+  productId: string;
+  variantId: string | null;
   name: string;
   slug: string;
   description: string | null;
   condition: "new" | "refurbished" | "used";
-  categoryId: string | null;
   categoryName: string | null;
+  price: number;
+  compareAtPrice: number | null;
+  image: { url: string; altText?: string } | null;
+  stock: number;
+  inStock: boolean;
+  label: string | null;
   isFeatured: boolean;
-  defaultVariant: {
-    price: number;
-    compareAtPrice: number | null;
-    image: { url: string; altText?: string } | null;
-    inStock: boolean;
-  } | null;
-  variantsCount: number;
-  priceRange: { min: number; max: number };
 };
 
 type Pagination = {
@@ -122,28 +121,31 @@ function FiltersSkeleton() {
 // ── Product Card ─────────────────────────────────────────────────────────────
 
 function ProductCard({ product }: { product: ProductListItem }) {
-  const variant = product.defaultVariant;
   const conditionCfg = CONDITION_CONFIG[product.condition];
   const hasDiscount =
-    variant?.compareAtPrice && variant.compareAtPrice > variant.price;
+    product.compareAtPrice != null && product.compareAtPrice > product.price;
   const discountPct = hasDiscount
     ? Math.round(
-        ((variant.compareAtPrice! - variant.price) / variant.compareAtPrice!) *
+        ((product.compareAtPrice! - product.price) / product.compareAtPrice!) *
           100
       )
     : 0;
 
+  const productLink = product.variantId
+    ? `/products/${product.slug}?variant=${product.variantId}`
+    : `/products/${product.slug}`;
+
   return (
     <Link
-      href={`/products/${product.slug}`}
+      href={productLink}
       className="group rounded-xl border border-border bg-card overflow-hidden transition-all duration-300 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 flex flex-col"
     >
       {/* Image */}
       <div className="relative aspect-square bg-muted/50 overflow-hidden">
-        {variant?.image?.url ? (
+        {product.image?.url ? (
           <ProductImage
-            src={variant.image.url}
-            alt={variant.image.altText || product.name}
+            src={product.image.url}
+            alt={product.image.altText || product.name}
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-105"
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -184,20 +186,12 @@ function ProductCard({ product }: { product: ProductListItem }) {
         </h3>
 
         <div className="flex items-baseline gap-2 mt-auto pt-1">
-          {variant ? (
-            <>
-              <span className="text-lg font-bold text-primary">
-                {formatPrice(variant.price)}
-              </span>
-              {hasDiscount && (
-                <span className="text-sm text-muted-foreground line-through">
-                  {formatPrice(variant.compareAtPrice!)}
-                </span>
-              )}
-            </>
-          ) : (
-            <span className="text-sm text-muted-foreground">
-              Price unavailable
+          <span className="text-lg font-bold text-primary">
+            {formatPrice(product.price)}
+          </span>
+          {hasDiscount && (
+            <span className="text-sm text-muted-foreground line-through">
+              {formatPrice(product.compareAtPrice!)}
             </span>
           )}
         </div>
@@ -207,16 +201,16 @@ function ProductCard({ product }: { product: ProductListItem }) {
           <div
             className={cn(
               "h-1.5 w-1.5 rounded-full",
-              variant?.inStock ? "bg-emerald-500" : "bg-red-500"
+              product.inStock ? "bg-emerald-500" : "bg-red-500"
             )}
           />
           <span
             className={cn(
               "text-xs",
-              variant?.inStock ? "text-emerald-400" : "text-red-400"
+              product.inStock ? "text-emerald-400" : "text-red-400"
             )}
           >
-            {variant?.inStock ? "In Stock" : "Out of Stock"}
+            {product.inStock ? "In Stock" : "Out of Stock"}
           </span>
         </div>
       </div>
@@ -565,14 +559,6 @@ function ProductsContent() {
         if (data.success) {
           let prods: ProductListItem[] = data.data.products;
 
-          // Client-side multi-category filter
-          if (categoryParam && categoryParam.includes(",")) {
-            const catSet = new Set(categoryParam.split(","));
-            prods = prods.filter(
-              (p) => p.categoryId && catSet.has(p.categoryId)
-            );
-          }
-
           // Client-side multi-condition filter
           if (conditionParam && conditionParam.includes(",")) {
             const condSet = new Set(conditionParam.split(","));
@@ -583,14 +569,10 @@ function ProductsContent() {
           const minP = minPrice ? parseInt(minPrice, 10) * 100 : null;
           const maxP = maxPrice ? parseInt(maxPrice, 10) * 100 : null;
           if (minP !== null) {
-            prods = prods.filter(
-              (p) => (p.defaultVariant?.price ?? 0) >= minP
-            );
+            prods = prods.filter((p) => p.price >= minP);
           }
           if (maxP !== null) {
-            prods = prods.filter(
-              (p) => (p.defaultVariant?.price ?? 0) <= maxP
-            );
+            prods = prods.filter((p) => p.price <= maxP);
           }
 
           setProducts(prods);

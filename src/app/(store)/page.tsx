@@ -38,6 +38,8 @@ type CategoryResult = {
 
 type SearchProduct = {
   id: string;
+  productId: string;
+  variantId: string | null;
   name: string;
   slug: string;
   condition: "new" | "refurbished" | "used";
@@ -45,6 +47,7 @@ type SearchProduct = {
   compareAtPrice: number | null;
   image: { url: string; altText?: string } | null;
   inStock: boolean;
+  label: string | null;
 };
 
 type SearchResults = {
@@ -65,15 +68,20 @@ type StoreCategory = {
 
 type FeaturedProduct = {
   id: string;
+  productId: string;
+  variantId: string | null;
   name: string;
   slug: string;
   description: string | null;
   condition: "new" | "refurbished" | "used";
   categoryName: string | null;
-  basePrice: number;
+  price: number;
   compareAtPrice: number | null;
-  images: Array<{ url: string; altText?: string }>;
+  image: { url: string; altText?: string } | null;
   stock: number;
+  inStock: boolean;
+  label: string | null;
+  isFeatured: boolean;
 };
 
 // ── Condition Badge (light theme) ────────────────────────────────────────────
@@ -208,7 +216,7 @@ function SearchDropdown({
                 {results.products.slice(0, 4).map((product) => (
                   <Link
                     key={product.id}
-                    href={`/products/${product.slug}`}
+                    href={product.variantId ? `/products/${product.slug}?variant=${product.variantId}` : `/products/${product.slug}`}
                     onClick={onClose}
                     className="flex items-center gap-3.5 rounded-lg px-3 py-3 hover:bg-[#f9fafb] transition-all duration-200 group"
                   >
@@ -294,14 +302,18 @@ function SearchDropdown({
 // ── Product Card (light theme) ───────────────────────────────────────────────
 
 function ProductCard({ product }: { product: FeaturedProduct }) {
-  const image = product.images?.[0] ?? null;
-  const inStock = product.stock > 0;
+  const image = product.image;
+  const inStock = product.inStock;
   const { addItem } = useCart();
 
+  const productLink = product.variantId
+    ? `/products/${product.slug}?variant=${product.variantId}`
+    : `/products/${product.slug}`;
+
   const discount =
-    product.compareAtPrice && product.compareAtPrice > product.basePrice
+    product.compareAtPrice && product.compareAtPrice > product.price
       ? Math.round(
-          ((product.compareAtPrice - product.basePrice) /
+          ((product.compareAtPrice - product.price) /
             product.compareAtPrice) *
             100
         )
@@ -312,12 +324,12 @@ function ProductCard({ product }: { product: FeaturedProduct }) {
     e.stopPropagation();
     if (!inStock) return;
     addItem({
-      variantId: product.id,
-      productId: product.id,
+      variantId: product.variantId || product.productId,
+      productId: product.productId,
       productName: product.name,
       productSlug: product.slug,
-      variantName: "Default",
-      price: product.basePrice,
+      variantName: product.label || "Default",
+      price: product.price,
       compareAtPrice: product.compareAtPrice,
       image: image?.url ?? null,
       quantity: 1,
@@ -325,7 +337,7 @@ function ProductCard({ product }: { product: FeaturedProduct }) {
   }
 
   return (
-    <Link href={`/products/${product.slug}`} className="group block">
+    <Link href={productLink} className="group block">
       <div className="bg-white rounded-xl border border-[#e5e7eb] overflow-hidden shadow-sm hover:shadow-md hover:border-[#EF9822]/40 transition-all duration-300">
         {/* Image */}
         <div className="relative aspect-[4/3] bg-[#f9fafb] overflow-hidden">
@@ -369,10 +381,10 @@ function ProductCard({ product }: { product: FeaturedProduct }) {
           {/* Prices */}
           <div className="flex items-baseline gap-2 mb-3">
             <span className="text-lg font-bold text-[#EF9822]">
-              {formatPrice(product.basePrice)}
+              {formatPrice(product.price)}
             </span>
             {product.compareAtPrice &&
-              product.compareAtPrice > product.basePrice && (
+              product.compareAtPrice > product.price && (
                 <span className="text-sm text-[#9ca3af] line-through">
                   {formatPrice(product.compareAtPrice)}
                 </span>

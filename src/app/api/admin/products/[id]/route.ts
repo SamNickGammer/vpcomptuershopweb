@@ -9,6 +9,9 @@ import { slugify } from "@/lib/utils/helpers";
 const variantSchema = z.object({
   variantId: z.string().min(1),
   name: z.string().min(1).max(255),
+  displayName: z.string().max(500).optional().default(""),
+  label: z.string().max(255).optional().default(""),
+  description: z.string().optional().default(""),
   sku: z.string().min(1).max(100),
   price: z.number().int().min(0),
   compareAtPrice: z.number().int().min(0).optional().nullable(),
@@ -174,7 +177,13 @@ export async function PUT(
     if (specs !== undefined) updateData.specs = specs;
     if (stock !== undefined) updateData.stock = stock;
     if (lowStockThreshold !== undefined) updateData.lowStockThreshold = lowStockThreshold;
-    if (variants !== undefined) updateData.variants = variants;
+    if (variants !== undefined) {
+      const productName = (name ?? existing.name) as string;
+      updateData.variants = variants.map((v) => ({
+        ...v,
+        displayName: v.displayName || `${productName} ${v.name}`.trim(),
+      }));
+    }
     if (isFeatured !== undefined) updateData.isFeatured = isFeatured;
     if (isActive !== undefined) updateData.isActive = isActive;
 

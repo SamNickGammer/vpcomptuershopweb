@@ -9,6 +9,9 @@ import { slugify } from "@/lib/utils/helpers";
 const variantSchema = z.object({
   variantId: z.string().min(1),
   name: z.string().min(1).max(255),
+  displayName: z.string().max(500).optional().default(""),
+  label: z.string().max(255).optional().default(""),
+  description: z.string().optional().default(""),
   sku: z.string().min(1).max(100),
   price: z.number().int().min(0),
   compareAtPrice: z.number().int().min(0).optional().nullable(),
@@ -220,6 +223,12 @@ export async function POST(request: NextRequest) {
       slug = `${slugify(name)}-${suffix}`;
     }
 
+    // Auto-fill displayName for variants if empty
+    const processedVariants = variants.map((v) => ({
+      ...v,
+      displayName: v.displayName || `${name} ${v.name}`.trim(),
+    }));
+
     const [product] = await db
       .insert(products)
       .values({
@@ -235,7 +244,7 @@ export async function POST(request: NextRequest) {
         specs,
         stock,
         lowStockThreshold,
-        variants,
+        variants: processedVariants,
         isFeatured,
         isActive,
       })
