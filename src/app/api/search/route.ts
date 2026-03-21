@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { products, productVariants, categories } from "@/lib/db/schema";
-import { eq, and, or, ilike, sql } from "drizzle-orm";
+import { products, categories } from "@/lib/db/schema";
+import { eq, and, or, ilike } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     const searchPattern = `%${q}%`;
 
-    // Run categories and products queries IN PARALLEL
+    // Run categories and products queries in parallel
     const [matchedCategories, productResults] = await Promise.all([
       // Categories query
       db
@@ -35,27 +35,10 @@ export async function GET(request: NextRequest) {
         )
         .limit(4),
 
-      // Products + variants in a single query using LEFT JOIN
+      // Products query — no joins needed, everything is on the products table
       db
-        .select({
-          id: products.id,
-          name: products.name,
-          slug: products.slug,
-          condition: products.condition,
-          variantPrice: productVariants.price,
-          variantCompareAtPrice: productVariants.compareAtPrice,
-          variantImages: productVariants.images,
-          variantStock: productVariants.stock,
-          variantIsDefault: productVariants.isDefault,
-        })
+        .select()
         .from(products)
-        .leftJoin(
-          productVariants,
-          and(
-            eq(productVariants.productId, products.id),
-            eq(productVariants.isActive, true)
-          )
-        )
         .where(
           and(
             eq(products.isActive, true),
@@ -64,62 +47,33 @@ export async function GET(request: NextRequest) {
               ilike(products.description, searchPattern)
             )
           )
-        ),
+        )
+        .limit(10),
     ]);
 
-    // Deduplicate products (multiple variants create multiple rows)
-    const productMap = new Map<
-      string,
-      {
-        id: string;
-        name: string;
-        slug: string;
-        condition: string;
-        price: number | null;
-        compareAtPrice: number | null;
-        image: { url: string; altText?: string } | null;
-        inStock: boolean;
-      }
-    >();
+    // Build product results
+    const searchProducts = productResults.map((p) => {
+      const image =
+        p.images && p.images.length > 0 ? p.images[0] : null;
 
-    for (const row of productResults) {
-      if (!productMap.has(row.id)) {
-        const images = row.variantImages as
-          | Array<{ url: string; altText?: string }>
-          | null;
-        productMap.set(row.id, {
-          id: row.id,
-          name: row.name,
-          slug: row.slug,
-          condition: row.condition,
-          price: row.variantPrice,
-          compareAtPrice: row.variantCompareAtPrice,
-          image: images?.[0] ?? null,
-          inStock: (row.variantStock ?? 0) > 0,
-        });
-      } else if (row.variantIsDefault) {
-        // Prefer default variant data
-        const images = row.variantImages as
-          | Array<{ url: string; altText?: string }>
-          | null;
-        productMap.set(row.id, {
-          ...productMap.get(row.id)!,
-          price: row.variantPrice,
-          compareAtPrice: row.variantCompareAtPrice,
-          image: images?.[0] ?? null,
-          inStock: (row.variantStock ?? 0) > 0,
-        });
-      }
-    }
-
-    const allProducts = Array.from(productMap.values());
+      return {
+        id: p.id,
+        name: p.name,
+        slug: p.slug,
+        condition: p.condition,
+        price: p.basePrice,
+        compareAtPrice: p.compareAtPrice,
+        image,
+        inStock: p.stock > 0,
+      };
+    });
 
     return NextResponse.json({
       success: true,
       data: {
         categories: matchedCategories,
-        products: allProducts.slice(0, 6),
-        totalProducts: allProducts.length,
+        products: searchProducts.slice(0, 6),
+        totalProducts: searchProducts.length,
       },
     });
   } catch (error) {

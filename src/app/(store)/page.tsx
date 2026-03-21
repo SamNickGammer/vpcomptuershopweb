@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { ProductImage } from "@/components/ui/product-image";
 import { cn, formatPrice } from "@/lib/utils/helpers";
+import { useCart } from "@/hooks/useCart";
 import {
   Search,
   FolderTree,
@@ -21,6 +22,9 @@ import {
   BadgeCheck,
   Timer,
   Laptop,
+  ShoppingCart,
+  RotateCcw,
+  Lock,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -66,22 +70,19 @@ type FeaturedProduct = {
   description: string | null;
   condition: "new" | "refurbished" | "used";
   categoryName: string | null;
-  defaultVariant: {
-    price: number;
-    compareAtPrice: number | null;
-    image: { url: string; altText?: string } | null;
-    inStock: boolean;
-  } | null;
-  priceRange: { min: number; max: number };
+  basePrice: number;
+  compareAtPrice: number | null;
+  images: Array<{ url: string; altText?: string }>;
+  stock: number;
 };
 
-// ── Condition Badge ──────────────────────────────────────────────────────────
+// ── Condition Badge (light theme) ────────────────────────────────────────────
 
 function ConditionBadge({ condition }: { condition: string }) {
   const styles: Record<string, string> = {
-    new: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-    refurbished: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-    used: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
+    new: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    refurbished: "bg-amber-50 text-amber-700 border-amber-200",
+    used: "bg-gray-100 text-gray-600 border-gray-200",
   };
 
   return (
@@ -96,7 +97,7 @@ function ConditionBadge({ condition }: { condition: string }) {
   );
 }
 
-// ── Search Dropdown ──────────────────────────────────────────────────────────
+// ── Search Dropdown (light theme) ────────────────────────────────────────────
 
 function SearchDropdown({
   results,
@@ -116,13 +117,11 @@ function SearchDropdown({
   const isEmpty = results && !hasCategories && !hasProducts;
 
   return (
-    <div className="absolute top-full left-0 right-0 mt-3 rounded-2xl border border-border/80 shadow-[0_20px_60px_rgba(0,0,0,0.5)] z-50 max-h-[75vh] overflow-hidden backdrop-blur-xl bg-[#0a0a0c]/95">
+    <div className="absolute top-full left-0 right-0 mt-2 rounded-xl border border-[#e5e7eb] shadow-xl z-50 max-h-[75vh] overflow-hidden bg-white">
       {loading && (
         <div className="flex flex-col items-center justify-center py-12 gap-3">
-          <div className="relative">
-            <div className="h-8 w-8 rounded-full border-2 border-indigo-500/20 border-t-indigo-400 animate-spin" />
-          </div>
-          <span className="text-sm text-muted-foreground/60">
+          <div className="h-8 w-8 rounded-full border-2 border-[#EF9822]/20 border-t-[#EF9822] animate-spin" />
+          <span className="text-sm text-[#6b7280]">
             Searching for &ldquo;{query}&rdquo;...
           </span>
         </div>
@@ -130,11 +129,12 @@ function SearchDropdown({
 
       {isEmpty && !loading && (
         <div className="flex flex-col items-center py-12 gap-2">
-          <Search className="h-8 w-8 text-muted-foreground/20" />
-          <p className="text-muted-foreground/60 text-sm">
-            No results for &ldquo;<span className="text-foreground/70">{query}</span>&rdquo;
+          <Search className="h-8 w-8 text-[#d1d5db]" />
+          <p className="text-[#6b7280] text-sm">
+            No results for &ldquo;
+            <span className="text-[#1a1a1a]">{query}</span>&rdquo;
           </p>
-          <p className="text-muted-foreground/40 text-xs">Try a different search term</p>
+          <p className="text-[#9ca3af] text-xs">Try a different search term</p>
         </div>
       )}
 
@@ -144,14 +144,14 @@ function SearchDropdown({
           {hasCategories && (
             <div className="px-2 pt-3 pb-2">
               <div className="flex items-center justify-between px-3 mb-2">
-                <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+                <span className="text-[11px] font-semibold uppercase tracking-widest text-[#9ca3af]">
                   Categories
                 </span>
                 {results.categories.length > 4 && (
                   <Link
                     href={`/products?search=${encodeURIComponent(query)}`}
                     onClick={onClose}
-                    className="text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors"
+                    className="text-[11px] text-[#EF9822] hover:underline transition-colors"
                   >
                     View all
                   </Link>
@@ -163,9 +163,9 @@ function SearchDropdown({
                     key={cat.id}
                     href={`/products?categoryId=${cat.id}`}
                     onClick={onClose}
-                    className="flex-shrink-0 flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.04] hover:border-indigo-500/20 transition-all duration-200 group"
+                    className="flex-shrink-0 flex items-center gap-2.5 rounded-lg px-3.5 py-2.5 bg-[#f9fafb] hover:bg-[#f3f4f6] border border-[#e5e7eb] hover:border-[#EF9822]/30 transition-all duration-200 group"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500/10 to-purple-500/10 overflow-hidden flex items-center justify-center border border-white/[0.06]">
+                    <div className="w-9 h-9 rounded-lg bg-[#f3f4f6] overflow-hidden flex items-center justify-center border border-[#e5e7eb]">
                       {cat.imageUrl ? (
                         <ProductImage
                           src={cat.imageUrl}
@@ -175,13 +175,13 @@ function SearchDropdown({
                           className="object-cover w-full h-full"
                         />
                       ) : (
-                        <FolderTree className="h-4 w-4 text-indigo-400/50" />
+                        <FolderTree className="h-4 w-4 text-[#9ca3af]" />
                       )}
                     </div>
-                    <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground whitespace-nowrap transition-colors">
+                    <span className="text-sm font-medium text-[#374151] group-hover:text-[#1a1a1a] whitespace-nowrap transition-colors">
                       {cat.name}
                     </span>
-                    <ChevronRight className="h-3 w-3 text-muted-foreground/30 group-hover:text-indigo-400/60 transition-colors" />
+                    <ChevronRight className="h-3 w-3 text-[#d1d5db] group-hover:text-[#EF9822] transition-colors" />
                   </Link>
                 ))}
               </div>
@@ -190,17 +190,17 @@ function SearchDropdown({
 
           {/* Divider */}
           {hasCategories && hasProducts && (
-            <div className="mx-4 h-px bg-gradient-to-r from-transparent via-border/60 to-transparent" />
+            <div className="mx-4 h-px bg-[#e5e7eb]" />
           )}
 
           {/* Products */}
           {hasProducts && (
             <div className="px-2 py-2">
               <div className="flex items-center justify-between px-3 mb-1.5">
-                <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+                <span className="text-[11px] font-semibold uppercase tracking-widest text-[#9ca3af]">
                   Products
                 </span>
-                <span className="text-[11px] text-muted-foreground/40">
+                <span className="text-[11px] text-[#9ca3af]">
                   {results.totalProducts} found
                 </span>
               </div>
@@ -210,10 +210,10 @@ function SearchDropdown({
                     key={product.id}
                     href={`/products/${product.slug}`}
                     onClick={onClose}
-                    className="flex items-center gap-3.5 rounded-xl px-3 py-3 hover:bg-white/[0.04] transition-all duration-200 group"
+                    className="flex items-center gap-3.5 rounded-lg px-3 py-3 hover:bg-[#f9fafb] transition-all duration-200 group"
                   >
                     {/* Image */}
-                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-secondary to-secondary/50 overflow-hidden flex-shrink-0 border border-white/[0.04] group-hover:border-indigo-500/20 transition-colors">
+                    <div className="w-14 h-14 rounded-lg bg-[#f3f4f6] overflow-hidden flex-shrink-0 border border-[#e5e7eb] group-hover:border-[#EF9822]/30 transition-colors">
                       {product.image ? (
                         <ProductImage
                           src={product.image.url}
@@ -224,26 +224,32 @@ function SearchDropdown({
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <FolderTree className="h-5 w-5 text-muted-foreground/30" />
+                          <FolderTree className="h-5 w-5 text-[#d1d5db]" />
                         </div>
                       )}
                     </div>
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground/90 group-hover:text-foreground truncate transition-colors">
+                      <p className="text-sm font-medium text-[#374151] group-hover:text-[#1a1a1a] truncate transition-colors">
                         {product.name}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <ConditionBadge condition={product.condition} />
-                        <span className={cn(
-                          "text-[10px] font-medium flex items-center gap-1",
-                          product.inStock ? "text-emerald-500/70" : "text-red-400/70"
-                        )}>
-                          <span className={cn(
-                            "w-1 h-1 rounded-full",
-                            product.inStock ? "bg-emerald-500" : "bg-red-400"
-                          )} />
+                        <span
+                          className={cn(
+                            "text-[10px] font-medium flex items-center gap-1",
+                            product.inStock
+                              ? "text-emerald-600"
+                              : "text-red-500"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "w-1 h-1 rounded-full",
+                              product.inStock ? "bg-emerald-500" : "bg-red-500"
+                            )}
+                          />
                           {product.inStock ? "In Stock" : "Out of Stock"}
                         </span>
                       </div>
@@ -251,11 +257,11 @@ function SearchDropdown({
 
                     {/* Price */}
                     <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-                      <span className="text-sm font-bold text-foreground/90 font-mono">
+                      <span className="text-sm font-bold text-[#1a1a1a] font-mono">
                         {product.price ? formatPrice(product.price) : "N/A"}
                       </span>
                       {product.compareAtPrice && (
-                        <span className="text-[11px] text-muted-foreground/50 line-through font-mono">
+                        <span className="text-[11px] text-[#9ca3af] line-through font-mono">
                           {formatPrice(product.compareAtPrice)}
                         </span>
                       )}
@@ -270,7 +276,7 @@ function SearchDropdown({
                   <Link
                     href={`/products?search=${encodeURIComponent(query)}`}
                     onClick={onClose}
-                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-indigo-500/[0.06] hover:bg-indigo-500/[0.1] border border-indigo-500/10 text-indigo-400 text-sm font-medium transition-all duration-200 group"
+                    className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-[#FFF3E0] hover:bg-[#FFECCC] border border-[#EF9822]/20 text-[#EF9822] text-sm font-medium transition-all duration-200 group"
                   >
                     View all {results.totalProducts} results
                     <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
@@ -285,17 +291,44 @@ function SearchDropdown({
   );
 }
 
-// ── Product Card ─────────────────────────────────────────────────────────────
+// ── Product Card (light theme) ───────────────────────────────────────────────
 
 function ProductCard({ product }: { product: FeaturedProduct }) {
-  const image = product.defaultVariant?.image;
-  const inStock = product.defaultVariant?.inStock ?? false;
+  const image = product.images?.[0] ?? null;
+  const inStock = product.stock > 0;
+  const { addItem } = useCart();
+
+  const discount =
+    product.compareAtPrice && product.compareAtPrice > product.basePrice
+      ? Math.round(
+          ((product.compareAtPrice - product.basePrice) /
+            product.compareAtPrice) *
+            100
+        )
+      : null;
+
+  function handleAddToCart(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!inStock) return;
+    addItem({
+      variantId: product.id,
+      productId: product.id,
+      productName: product.name,
+      productSlug: product.slug,
+      variantName: "Default",
+      price: product.basePrice,
+      compareAtPrice: product.compareAtPrice,
+      image: image?.url ?? null,
+      quantity: 1,
+    });
+  }
 
   return (
     <Link href={`/products/${product.slug}`} className="group block">
-      <div className="bg-card rounded-xl border border-border overflow-hidden hover:border-primary/50 transition-all duration-300">
+      <div className="bg-white rounded-xl border border-[#e5e7eb] overflow-hidden shadow-sm hover:shadow-md hover:border-[#EF9822]/40 transition-all duration-300">
         {/* Image */}
-        <div className="relative aspect-[4/3] bg-secondary overflow-hidden">
+        <div className="relative aspect-[4/3] bg-[#f9fafb] overflow-hidden">
           {image ? (
             <ProductImage
               src={image.url}
@@ -306,51 +339,76 @@ function ProductCard({ product }: { product: FeaturedProduct }) {
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <FolderTree className="h-10 w-10 text-muted-foreground/40" />
+              <FolderTree className="h-10 w-10 text-[#d1d5db]" />
             </div>
           )}
           {/* Condition badge */}
-          <div className="absolute top-3 right-3">
+          <div className="absolute top-3 left-3">
             <ConditionBadge condition={product.condition} />
           </div>
+          {/* Discount badge */}
+          {discount && (
+            <div className="absolute top-3 right-3 bg-[#EF9822] text-white text-xs font-bold px-2 py-1 rounded-md">
+              -{discount}%
+            </div>
+          )}
         </div>
 
         {/* Info */}
         <div className="p-4">
-          <p className="font-medium line-clamp-2 leading-snug mb-2 group-hover:text-primary transition-colors">
+          {/* Category */}
+          {product.categoryName && (
+            <p className="text-[11px] uppercase tracking-wider text-[#9ca3af] mb-1">
+              {product.categoryName}
+            </p>
+          )}
+          <p className="font-medium text-[#1a1a1a] line-clamp-2 leading-snug mb-3 group-hover:text-[#EF9822] transition-colors">
             {product.name}
           </p>
-          <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-lg font-bold">
-              {product.defaultVariant
-                ? formatPrice(product.defaultVariant.price)
-                : "N/A"}
+
+          {/* Prices */}
+          <div className="flex items-baseline gap-2 mb-3">
+            <span className="text-lg font-bold text-[#EF9822]">
+              {formatPrice(product.basePrice)}
             </span>
-            {product.defaultVariant?.compareAtPrice && (
-              <span className="text-sm text-muted-foreground line-through">
-                {formatPrice(product.defaultVariant.compareAtPrice)}
-              </span>
-            )}
+            {product.compareAtPrice &&
+              product.compareAtPrice > product.basePrice && (
+                <span className="text-sm text-[#9ca3af] line-through">
+                  {formatPrice(product.compareAtPrice)}
+                </span>
+              )}
           </div>
+
+          {/* Stock + Add to Cart */}
           <div className="flex items-center justify-between">
             <span
               className={cn(
                 "text-xs font-medium flex items-center gap-1",
-                inStock ? "text-emerald-400" : "text-red-400"
+                inStock ? "text-emerald-600" : "text-red-500"
               )}
             >
               <span
                 className={cn(
                   "w-1.5 h-1.5 rounded-full",
-                  inStock ? "bg-emerald-400" : "bg-red-400"
+                  inStock ? "bg-emerald-500" : "bg-red-500"
                 )}
               />
               {inStock ? "In Stock" : "Out of Stock"}
             </span>
-            <span className="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-              View Details
-              <ArrowRight className="h-3 w-3" />
-            </span>
+            {inStock ? (
+              <button
+                onClick={handleAddToCart}
+                className="flex items-center gap-1.5 bg-[#EF9822] hover:bg-[#d9881d] text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+              >
+                <ShoppingCart className="h-3 w-3" />
+                Add to Cart
+              </button>
+            ) : (
+              <span className="flex items-center gap-1 text-xs text-[#EF9822] font-medium">
+                View
+                <ArrowRight className="h-3 w-3" />
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -363,7 +421,9 @@ function ProductCard({ product }: { product: FeaturedProduct }) {
 export default function HomePage() {
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchResults | null>(null);
+  const [searchResults, setSearchResults] = useState<SearchResults | null>(
+    null
+  );
   const [searchLoading, setSearchLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -428,7 +488,10 @@ export default function HomePage() {
   // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+      if (
+        searchRef.current &&
+        !searchRef.current.contains(e.target as Node)
+      ) {
         setShowDropdown(false);
       }
     }
@@ -446,164 +509,149 @@ export default function HomePage() {
   }, []);
 
   return (
-    <main className="min-h-screen">
-      {/* ── Promo Ticker ──────────────────────────────────────────────────────── */}
-      <div className="bg-primary/10 border-b border-primary/20 overflow-hidden">
+    <main className="min-h-screen bg-white">
+      {/* ── Section 1: Promo Ticker ─────────────────────────────────────────── */}
+      <div className="bg-[#EF9822] overflow-hidden">
         <div className="ticker-scroll flex items-center gap-12 whitespace-nowrap py-2 w-max">
           {[...Array(2)].map((_, rep) => (
             <div key={rep} className="flex items-center gap-12">
-              <span className="flex items-center gap-2 text-sm font-medium text-primary"><Percent className="h-3.5 w-3.5" /> Up to 40% Off on Refurbished Laptops</span>
-              <span className="text-primary/30">|</span>
-              <span className="flex items-center gap-2 text-sm font-medium text-primary"><Truck className="h-3.5 w-3.5" /> Free Delivery Across Patna</span>
-              <span className="text-primary/30">|</span>
-              <span className="flex items-center gap-2 text-sm font-medium text-primary"><BadgeCheck className="h-3.5 w-3.5" /> All Products Quality Tested</span>
-              <span className="text-primary/30">|</span>
-              <span className="flex items-center gap-2 text-sm font-medium text-primary"><Timer className="h-3.5 w-3.5" /> Same Day Dispatch on Orders Before 2PM</span>
-              <span className="text-primary/30">|</span>
+              <span className="flex items-center gap-2 text-sm font-medium text-white">
+                <Percent className="h-3.5 w-3.5" /> Up to 40% Off on
+                Refurbished Laptops
+              </span>
+              <span className="text-white/40">|</span>
+              <span className="flex items-center gap-2 text-sm font-medium text-white">
+                <Truck className="h-3.5 w-3.5" /> Free Delivery Across Patna
+              </span>
+              <span className="text-white/40">|</span>
+              <span className="flex items-center gap-2 text-sm font-medium text-white">
+                <BadgeCheck className="h-3.5 w-3.5" /> All Products Quality
+                Tested
+              </span>
+              <span className="text-white/40">|</span>
+              <span className="flex items-center gap-2 text-sm font-medium text-white">
+                <Timer className="h-3.5 w-3.5" /> Same Day Dispatch on Orders
+                Before 2PM
+              </span>
+              <span className="text-white/40">|</span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* ── Section 1: Hero ────────────────────────────────────────────────────── */}
-      <section className="relative overflow-x-clip">
-        {/* Warm gradient background */}
-        <div className="absolute inset-0 pointer-events-none" style={{
-          background: "radial-gradient(ellipse 70% 60% at 30% 20%, rgba(35,65,131,0.15) 0%, transparent 60%)"
-        }} />
-        <div className="absolute inset-0 pointer-events-none" style={{
-          background: "radial-gradient(ellipse 50% 50% at 80% 70%, rgba(239,152,34,0.06) 0%, transparent 50%)"
-        }} />
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
-          <div className="grid lg:grid-cols-5 gap-6 lg:gap-8 items-start">
-
-            {/* ── Left: Main promo + search (3 cols) ── */}
-            <div className="lg:col-span-3 space-y-6">
-              {/* Main Promo Banner */}
-              <div className="hero-stagger-1 relative rounded-2xl overflow-hidden bg-gradient-to-br from-[#1a2a52] via-[#162040] to-[#0e1019] border border-[#234183]/30 p-8 md:p-10">
+      {/* ── Section 2: Hero Banner Area ─────────────────────────────────────── */}
+      <section className="bg-[#f9fafb] border-b border-[#e5e7eb]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10">
+          <div className="grid lg:grid-cols-5 gap-4 lg:gap-6">
+            {/* Main Promo Banner (left ~65%) */}
+            <div className="lg:col-span-3">
+              <div className="hero-stagger-1 relative rounded-2xl overflow-hidden bg-gradient-to-br from-[#234183] via-[#1d3570] to-[#162a5e] p-8 md:p-10 h-full min-h-[280px] flex flex-col justify-center">
                 {/* Decorative corner accent */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-primary/20 to-transparent rounded-bl-full" />
-                <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-[#234183]/20 to-transparent rounded-tr-full" />
+                <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-[#EF9822]/20 to-transparent rounded-bl-full" />
+                <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-white/5 to-transparent rounded-tr-full" />
 
                 <div className="relative">
-                  <div className="inline-flex items-center gap-1.5 bg-primary/20 rounded-full px-3 py-1 text-xs font-bold text-primary uppercase tracking-wider mb-4">
+                  <div className="inline-flex items-center gap-1.5 bg-[#EF9822]/20 rounded-full px-3 py-1 text-xs font-bold text-[#EF9822] uppercase tracking-wider mb-4">
                     <Percent className="h-3 w-3" /> Limited Time Offer
                   </div>
-                  <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.15] mb-4">
+                  <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.15] mb-4 text-white">
                     Refurbished Laptops
                     <br />
-                    <span className="text-primary">Starting ₹12,999</span>
+                    <span className="text-[#EF9822]">Starting ₹12,999</span>
                   </h1>
-                  <p className="text-muted-foreground text-sm md:text-base max-w-md mb-6 leading-relaxed">
-                    Dell, HP, Lenovo &amp; more — professionally restored with 6-month warranty. Save big on quality hardware.
+                  <p className="text-white/70 text-sm md:text-base max-w-md mb-6 leading-relaxed">
+                    Dell, HP, Lenovo &amp; more — professionally restored with
+                    6-month warranty. Save big on quality hardware.
                   </p>
                   <Link
                     href="/products?condition=refurbished"
-                    className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-3 rounded-xl transition-colors shadow-lg shadow-primary/20"
+                    className="inline-flex items-center gap-2 bg-[#EF9822] hover:bg-[#d9881d] text-white font-semibold px-6 py-3 rounded-xl transition-colors shadow-lg shadow-[#EF9822]/30"
                   >
                     Shop Now
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </div>
               </div>
-
-              {/* Search Bar */}
-              <div ref={searchRef} className="hero-stagger-2 relative">
-                <div className="relative search-glow rounded-xl">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/50" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => handleSearchInput(e.target.value)}
-                    onFocus={() => searchQuery.length >= 2 && setShowDropdown(true)}
-                    placeholder="Search laptops, processors, RAM, motherboards..."
-                    className="w-full h-13 pl-12 pr-12 rounded-xl bg-secondary border border-border text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all text-sm"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => { setSearchQuery(""); setSearchResults(null); setShowDropdown(false); }}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-
-                {showDropdown && (
-                  <SearchDropdown
-                    results={searchResults}
-                    loading={searchLoading}
-                    query={searchQuery}
-                    onClose={() => setShowDropdown(false)}
-                  />
-                )}
-              </div>
-
-              {/* Popular searches */}
-              {!showDropdown && (
-                <div className="hero-stagger-3 flex flex-wrap items-center gap-2">
-                  <span className="text-xs text-muted-foreground/50">Trending:</span>
-                  {["Dell Latitude", "i5 Processor", "8GB RAM", "256GB SSD", "Motherboard"].map((tag) => (
-                    <Link
-                      key={tag}
-                      href={`/products?search=${encodeURIComponent(tag)}`}
-                      className="px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground bg-secondary border border-border hover:border-primary/40 hover:text-primary transition-all"
-                    >
-                      {tag}
-                    </Link>
-                  ))}
-                </div>
-              )}
             </div>
 
-            {/* ── Right: Deal cards (2 cols) ── */}
+            {/* Side Cards (right ~35%) */}
             <div className="lg:col-span-2 grid grid-cols-2 lg:grid-cols-1 gap-4">
               {/* Deal Card 1 */}
-              <Link href="/products?condition=new" className="hero-stagger-3 group block">
-                <div className="rounded-2xl border border-border bg-card p-5 hover:border-primary/40 transition-all h-full">
+              <Link
+                href="/products?condition=new"
+                className="hero-stagger-2 group block"
+              >
+                <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5 hover:border-[#EF9822]/40 hover:shadow-md transition-all h-full">
                   <div className="flex items-center gap-2 mb-3">
-                    <div className="p-2 rounded-lg bg-emerald-500/10">
-                      <Laptop className="h-4 w-4 text-emerald-400" />
+                    <div className="p-2 rounded-lg bg-emerald-50">
+                      <Laptop className="h-4 w-4 text-emerald-600" />
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">New Arrivals</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">
+                      New Arrivals
+                    </span>
                   </div>
-                  <h3 className="font-bold text-foreground mb-1 group-hover:text-primary transition-colors">Brand New Laptops</h3>
-                  <p className="text-xs text-muted-foreground mb-3">ASUS, HP, Lenovo, Dell</p>
-                  <p className="text-lg font-bold text-primary">From ₹29,999</p>
+                  <h3 className="font-bold text-[#1a1a1a] mb-1 group-hover:text-[#EF9822] transition-colors">
+                    Brand New Laptops
+                  </h3>
+                  <p className="text-xs text-[#6b7280] mb-3">
+                    ASUS, HP, Lenovo, Dell
+                  </p>
+                  <p className="text-lg font-bold text-[#EF9822]">
+                    From ₹29,999
+                  </p>
                 </div>
               </Link>
 
               {/* Deal Card 2 */}
-              <Link href="/products?search=processor" className="hero-stagger-4 group block">
-                <div className="rounded-2xl border border-border bg-card p-5 hover:border-primary/40 transition-all h-full">
+              <Link
+                href="/products?search=processor"
+                className="hero-stagger-3 group block"
+              >
+                <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5 hover:border-[#EF9822]/40 hover:shadow-md transition-all h-full">
                   <div className="flex items-center gap-2 mb-3">
-                    <div className="p-2 rounded-lg bg-blue-500/10">
-                      <BadgeCheck className="h-4 w-4 text-blue-400" />
+                    <div className="p-2 rounded-lg bg-blue-50">
+                      <BadgeCheck className="h-4 w-4 text-blue-600" />
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">Components</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600">
+                      Components
+                    </span>
                   </div>
-                  <h3 className="font-bold text-foreground mb-1 group-hover:text-primary transition-colors">Processors & RAM</h3>
-                  <p className="text-xs text-muted-foreground mb-3">Intel & AMD, DDR4</p>
-                  <p className="text-lg font-bold text-primary">From ₹3,499</p>
+                  <h3 className="font-bold text-[#1a1a1a] mb-1 group-hover:text-[#EF9822] transition-colors">
+                    Processors &amp; RAM
+                  </h3>
+                  <p className="text-xs text-[#6b7280] mb-3">
+                    Intel &amp; AMD, DDR4
+                  </p>
+                  <p className="text-lg font-bold text-[#EF9822]">
+                    From ₹3,499
+                  </p>
                 </div>
               </Link>
 
               {/* Deal Card 3 */}
-              <Link href="/products?search=motherboard" className="hero-stagger-5 group block col-span-2 lg:col-span-1">
-                <div className="rounded-2xl border border-border bg-card p-5 hover:border-primary/40 transition-all">
+              <Link
+                href="/products?search=motherboard"
+                className="hero-stagger-4 group block col-span-2 lg:col-span-1"
+              >
+                <div className="rounded-2xl border border-[#e5e7eb] bg-white p-5 hover:border-[#EF9822]/40 hover:shadow-md transition-all">
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2 mb-2">
-                        <div className="p-2 rounded-lg bg-primary/10">
-                          <ShieldCheck className="h-4 w-4 text-primary" />
+                        <div className="p-2 rounded-lg bg-[#FFF3E0]">
+                          <ShieldCheck className="h-4 w-4 text-[#EF9822]" />
                         </div>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Bestsellers</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-[#EF9822]">
+                          Bestsellers
+                        </span>
                       </div>
-                      <h3 className="font-bold text-foreground group-hover:text-primary transition-colors">Motherboards & Storage</h3>
-                      <p className="text-xs text-muted-foreground mt-1">Gigabyte, ASUS, Samsung, WD</p>
+                      <h3 className="font-bold text-[#1a1a1a] group-hover:text-[#EF9822] transition-colors">
+                        Motherboards &amp; Storage
+                      </h3>
+                      <p className="text-xs text-[#6b7280] mt-1">
+                        Gigabyte, ASUS, Samsung, WD
+                      </p>
                     </div>
-                    <ArrowRight className="h-5 w-5 text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                    <ArrowRight className="h-5 w-5 text-[#d1d5db] group-hover:text-[#EF9822] group-hover:translate-x-1 transition-all" />
                   </div>
                 </div>
               </Link>
@@ -611,18 +659,41 @@ export default function HomePage() {
           </div>
 
           {/* Trust Strip */}
-          <div className="hero-stagger-5 mt-8 grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="hero-stagger-5 mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { icon: ShieldCheck, text: "Quality Tested", sub: "Every product inspected" },
-              { icon: Truck, text: "Fast Delivery", sub: "Across Bihar" },
-              { icon: IndianRupee, text: "Best Prices", sub: "Guaranteed lowest" },
-              { icon: Headphones, text: "Expert Support", sub: "Call or WhatsApp" },
+              {
+                icon: Truck,
+                text: "Free Shipping",
+                sub: "On orders across Patna",
+              },
+              {
+                icon: ShieldCheck,
+                text: "Genuine Products",
+                sub: "Every item quality tested",
+              },
+              {
+                icon: RotateCcw,
+                text: "Easy Returns",
+                sub: "7-day return policy",
+              },
+              {
+                icon: Lock,
+                text: "Secure Payment",
+                sub: "100% protected checkout",
+              },
             ].map((item) => (
-              <div key={item.text} className="flex items-center gap-3 rounded-xl bg-secondary/50 border border-border/50 px-4 py-3">
-                <item.icon className="h-5 w-5 text-primary flex-shrink-0" />
+              <div
+                key={item.text}
+                className="flex items-center gap-3 rounded-xl bg-white border border-[#e5e7eb] px-4 py-3"
+              >
+                <div className="p-2 rounded-lg bg-[#FFF3E0]">
+                  <item.icon className="h-4 w-4 text-[#EF9822]" />
+                </div>
                 <div>
-                  <p className="text-xs font-semibold text-foreground">{item.text}</p>
-                  <p className="text-[10px] text-muted-foreground">{item.sub}</p>
+                  <p className="text-xs font-semibold text-[#1a1a1a]">
+                    {item.text}
+                  </p>
+                  <p className="text-[10px] text-[#6b7280]">{item.sub}</p>
                 </div>
               </div>
             ))}
@@ -630,22 +701,29 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Section 2: Categories ───────────────────────────────────────────── */}
-      <section className="py-16 md:py-24 px-4">
+      {/* ── Section 3: Categories Grid ──────────────────────────────────────── */}
+      <section className="py-12 md:py-16 px-4 bg-white">
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-4 mb-10">
-            <h2 className="text-2xl md:text-3xl font-bold">
+          <div className="flex items-center gap-4 mb-8">
+            <h2 className="text-2xl md:text-3xl font-bold text-[#234183]">
               Shop by Category
             </h2>
-            <div className="flex-1 h-px bg-border" />
+            <div className="flex-1 h-px bg-[#e5e7eb]" />
+            <Link
+              href="/categories"
+              className="text-sm text-[#EF9822] hover:underline flex items-center gap-1 flex-shrink-0"
+            >
+              View All
+              <ArrowRight className="h-3 w-3" />
+            </Link>
           </div>
 
           {categoriesLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Loader2 className="h-6 w-6 animate-spin text-[#6b7280]" />
             </div>
           ) : categories.length === 0 ? (
-            <p className="text-center text-muted-foreground py-12">
+            <p className="text-center text-[#6b7280] py-12">
               No categories available yet.
             </p>
           ) : (
@@ -656,7 +734,7 @@ export default function HomePage() {
                   href={`/products?categoryId=${cat.id}`}
                   className="group flex flex-col items-center gap-3"
                 >
-                  <div className="w-20 h-20 md:w-24 md:h-24 rounded-full border-2 border-border overflow-hidden bg-secondary flex items-center justify-center transition-all duration-300 group-hover:scale-105 group-hover:border-primary">
+                  <div className="w-20 h-20 md:w-24 md:h-24 rounded-full border-2 border-[#e5e7eb] overflow-hidden bg-[#f9fafb] flex items-center justify-center transition-all duration-300 group-hover:scale-105 group-hover:border-[#EF9822] group-hover:shadow-md">
                     {cat.imageUrl ? (
                       <ProductImage
                         src={cat.imageUrl}
@@ -666,10 +744,10 @@ export default function HomePage() {
                         className="object-cover w-full h-full"
                       />
                     ) : (
-                      <FolderTree className="h-7 w-7 md:h-8 md:w-8 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <FolderTree className="h-7 w-7 md:h-8 md:w-8 text-[#9ca3af] group-hover:text-[#EF9822] transition-colors" />
                     )}
                   </div>
-                  <span className="text-sm font-medium text-center text-muted-foreground group-hover:text-foreground transition-colors">
+                  <span className="text-sm font-medium text-center text-[#4b5563] group-hover:text-[#1a1a1a] transition-colors">
                     {cat.name}
                   </span>
                 </Link>
@@ -679,19 +757,19 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Section 3: Featured Products ────────────────────────────────────── */}
-      <section className="py-16 md:py-24 px-4">
+      {/* ── Section 4: Featured Products ────────────────────────────────────── */}
+      <section className="py-12 md:py-16 px-4 bg-[#f9fafb] border-y border-[#e5e7eb]">
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between mb-10">
+          <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-4 flex-1">
-              <h2 className="text-2xl md:text-3xl font-bold">
+              <h2 className="text-2xl md:text-3xl font-bold text-[#234183]">
                 Featured Products
               </h2>
-              <div className="flex-1 h-px bg-border" />
+              <div className="flex-1 h-px bg-[#e5e7eb]" />
             </div>
             <Link
               href="/products"
-              className="text-sm text-primary hover:underline flex items-center gap-1 ml-4 flex-shrink-0"
+              className="text-sm text-[#EF9822] hover:underline flex items-center gap-1 ml-4 flex-shrink-0"
             >
               View All
               <ArrowRight className="h-3 w-3" />
@@ -703,19 +781,19 @@ export default function HomePage() {
               {Array.from({ length: 4 }).map((_, i) => (
                 <div
                   key={i}
-                  className="bg-card rounded-xl border border-border overflow-hidden animate-pulse"
+                  className="bg-white rounded-xl border border-[#e5e7eb] overflow-hidden animate-pulse"
                 >
-                  <div className="aspect-[4/3] bg-secondary" />
+                  <div className="aspect-[4/3] bg-[#f3f4f6]" />
                   <div className="p-4 space-y-3">
-                    <div className="h-4 bg-secondary rounded w-3/4" />
-                    <div className="h-5 bg-secondary rounded w-1/2" />
-                    <div className="h-3 bg-secondary rounded w-1/3" />
+                    <div className="h-4 bg-[#f3f4f6] rounded w-3/4" />
+                    <div className="h-5 bg-[#f3f4f6] rounded w-1/2" />
+                    <div className="h-3 bg-[#f3f4f6] rounded w-1/3" />
                   </div>
                 </div>
               ))}
             </div>
           ) : featuredProducts.length === 0 ? (
-            <p className="text-center text-muted-foreground py-12">
+            <p className="text-center text-[#6b7280] py-12">
               No featured products yet.
             </p>
           ) : (
@@ -728,39 +806,72 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Section 4: Trust Badges ─────────────────────────────────────────── */}
-      <section className="py-16 md:py-24 px-4">
+      {/* ── Section 5: Full-Width Promo Banner ──────────────────────────────── */}
+      <section className="bg-gradient-to-r from-[#234183] to-[#1d3570]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div>
+              <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                Looking for Computer Components?
+              </h2>
+              <p className="text-white/70 text-sm md:text-base max-w-lg">
+                Motherboards, processors, RAM, SSDs, graphics cards, and more.
+                All genuine products with warranty.
+              </p>
+            </div>
+            <Link
+              href="/products"
+              className="inline-flex items-center gap-2 bg-[#EF9822] hover:bg-[#d9881d] text-white font-semibold px-8 py-3.5 rounded-xl transition-colors shadow-lg whitespace-nowrap"
+            >
+              Browse All Products
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Section 6: Trust / Why Choose Us ────────────────────────────────── */}
+      <section className="py-12 md:py-16 px-4 bg-white">
         <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl md:text-3xl font-bold text-[#234183] mb-2">
+              Why Choose V&P Computer?
+            </h2>
+            <p className="text-[#6b7280] text-sm max-w-lg mx-auto">
+              Trusted by hundreds of customers in Patna and across Bihar
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {[
               {
                 icon: ShieldCheck,
                 title: "Verified Products",
                 desc: "Every product is tested and quality-checked before listing",
-                color: "text-emerald-400 bg-emerald-400/10",
+                color: "bg-emerald-50 text-emerald-600",
               },
               {
                 icon: IndianRupee,
                 title: "Best Prices",
                 desc: "Competitive pricing on all new and refurbished hardware",
-                color: "text-amber-400 bg-amber-400/10",
+                color: "bg-amber-50 text-amber-600",
               },
               {
                 icon: Truck,
                 title: "Fast Delivery",
                 desc: "Quick shipping across Patna and all of Bihar",
-                color: "text-blue-400 bg-blue-400/10",
+                color: "bg-blue-50 text-blue-600",
               },
               {
                 icon: Headphones,
                 title: "Expert Support",
                 desc: "Get help from our experienced hardware specialists",
-                color: "text-purple-400 bg-purple-400/10",
+                color: "bg-purple-50 text-purple-600",
               },
             ].map((item) => (
               <div
                 key={item.title}
-                className="bg-card rounded-xl border border-border p-6 text-center hover:border-primary/30 transition-colors"
+                className="bg-white rounded-xl border border-[#e5e7eb] p-6 text-center hover:border-[#EF9822]/30 hover:shadow-md transition-all"
               >
                 <div
                   className={cn(
@@ -770,8 +881,10 @@ export default function HomePage() {
                 >
                   <item.icon className="h-6 w-6" />
                 </div>
-                <h3 className="font-semibold mb-1">{item.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
+                <h3 className="font-semibold text-[#1a1a1a] mb-1">
+                  {item.title}
+                </h3>
+                <p className="text-sm text-[#6b7280] leading-relaxed">
                   {item.desc}
                 </p>
               </div>
@@ -780,14 +893,14 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Section 5: Testimonials ─────────────────────────────────────────── */}
-      <section className="py-16 md:py-24 px-4">
+      {/* ── Testimonials ────────────────────────────────────────────────────── */}
+      <section className="py-12 md:py-16 px-4 bg-[#f9fafb] border-y border-[#e5e7eb]">
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-4 mb-10">
-            <h2 className="text-2xl md:text-3xl font-bold">
+          <div className="flex items-center gap-4 mb-8">
+            <h2 className="text-2xl md:text-3xl font-bold text-[#234183]">
               What Our Customers Say
             </h2>
-            <div className="flex-1 h-px bg-border" />
+            <div className="flex-1 h-px bg-[#e5e7eb]" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -813,7 +926,7 @@ export default function HomePage() {
             ].map((testimonial) => (
               <div
                 key={testimonial.name}
-                className="bg-card rounded-xl border border-border p-6 hover:border-primary/30 transition-colors"
+                className="bg-white rounded-xl border border-[#e5e7eb] p-6 hover:shadow-md transition-all"
               >
                 {/* Stars */}
                 <div className="flex gap-0.5 mb-4">
@@ -824,12 +937,14 @@ export default function HomePage() {
                     />
                   ))}
                 </div>
-                <p className="text-foreground leading-relaxed mb-4">
+                <p className="text-[#1a1a1a] leading-relaxed mb-4">
                   &ldquo;{testimonial.quote}&rdquo;
                 </p>
                 <div>
-                  <p className="font-medium text-sm">{testimonial.name}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="font-medium text-sm text-[#1a1a1a]">
+                    {testimonial.name}
+                  </p>
+                  <p className="text-xs text-[#6b7280]">
                     {testimonial.location}
                   </p>
                 </div>
@@ -839,30 +954,55 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Section 6: Newsletter CTA ───────────────────────────────────────── */}
-      <section className="py-16 md:py-24 px-4">
+      {/* ── Section 7: Newsletter ───────────────────────────────────────────── */}
+      <section className="py-12 md:py-16 px-4 bg-white">
         <div className="max-w-2xl mx-auto text-center">
-          <div className="bg-card rounded-2xl border border-border p-8 md:p-12">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <Mail className="h-6 w-6 text-primary" />
+          <div className="bg-[#f9fafb] rounded-2xl border border-[#e5e7eb] p-8 md:p-12">
+            <div className="w-12 h-12 rounded-full bg-[#FFF3E0] flex items-center justify-center mx-auto mb-4">
+              <Mail className="h-6 w-6 text-[#EF9822]" />
             </div>
-            <h2 className="text-2xl font-bold mb-2">Stay Updated</h2>
-            <p className="text-muted-foreground text-sm mb-6">
+            <h2 className="text-2xl font-bold text-[#234183] mb-2">
+              Stay Updated
+            </h2>
+            <p className="text-[#6b7280] text-sm mb-6">
               Get notified about new arrivals, deals, and restocks.
             </p>
             <div className="flex gap-2 max-w-md mx-auto">
               <input
                 type="email"
                 placeholder="Enter your email"
-                className="flex-1 h-11 px-4 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all text-sm"
+                className="flex-1 h-11 px-4 rounded-lg bg-white border border-[#e5e7eb] text-[#1a1a1a] placeholder:text-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#EF9822]/40 focus:border-[#EF9822] transition-all text-sm"
               />
-              <button className="h-11 px-6 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-colors flex-shrink-0">
+              <button className="h-11 px-6 rounded-lg bg-[#EF9822] text-white font-medium text-sm hover:bg-[#d9881d] transition-colors flex-shrink-0">
                 Subscribe
               </button>
             </div>
           </div>
         </div>
       </section>
+
+      {/* ── Inline Search (hero area, for mobile/SEO) ───────────────────────── */}
+      <div className="hidden">
+        {/* Search functionality preserved for programmatic use */}
+        <div ref={searchRef}>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => handleSearchInput(e.target.value)}
+            onFocus={() =>
+              searchQuery.length >= 2 && setShowDropdown(true)
+            }
+          />
+          {showDropdown && (
+            <SearchDropdown
+              results={searchResults}
+              loading={searchLoading}
+              query={searchQuery}
+              onClose={() => setShowDropdown(false)}
+            />
+          )}
+        </div>
+      </div>
     </main>
   );
 }

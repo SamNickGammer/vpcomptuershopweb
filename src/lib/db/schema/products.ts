@@ -18,8 +18,24 @@ export const conditionEnum = pgEnum("condition", [
   "used",
 ]);
 
+// ── Variant type (stored as JSONB array on products) ──────────────────────────
+// Each variant is a sellable configuration of the same product.
+// Example: Acer UP200 Pendrive → variants: [{name:"8GB", price:399}, {name:"32GB", price:699}]
+// In the storefront, each variant appears as a separate listing.
+export type ProductVariantData = {
+  variantId: string;
+  name: string; // "8GB", "Black / 16GB RAM", etc.
+  sku: string;
+  price: number; // paise
+  compareAtPrice?: number | null;
+  images: Array<{ url: string; altText?: string }>;
+  specs: Array<{ key: string; value: string }>;
+  stock: number;
+  isDefault?: boolean;
+  isActive?: boolean;
+};
+
 // ── Products ──────────────────────────────────────────────────────────────────
-// Base product info — pricing, images, specs all live on variants
 export const products = pgTable("products", {
   id: uuid("id").primaryKey().defaultRandom(),
   categoryId: uuid("category_id").references(() => categories.id),
@@ -27,6 +43,27 @@ export const products = pgTable("products", {
   slug: varchar("slug", { length: 300 }).notNull().unique(),
   description: text("description"),
   condition: conditionEnum("condition").notNull().default("new"),
+  sku: varchar("sku", { length: 100 }),
+  // Default pricing (from default variant or single product)
+  basePrice: integer("base_price").notNull().default(0),
+  compareAtPrice: integer("compare_at_price"),
+  // Default images & specs
+  images: jsonb("images")
+    .$type<Array<{ url: string; altText?: string }>>()
+    .notNull()
+    .default([]),
+  specs: jsonb("specs")
+    .$type<Array<{ key: string; value: string }>>()
+    .notNull()
+    .default([]),
+  // Inventory
+  stock: integer("stock").notNull().default(0),
+  lowStockThreshold: integer("low_stock_threshold").notNull().default(2),
+  // Variants as JSON array (empty = single product, no variants)
+  variants: jsonb("variants")
+    .$type<ProductVariantData[]>()
+    .notNull()
+    .default([]),
   isFeatured: boolean("is_featured").notNull().default(false),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -37,139 +74,14 @@ export const products = pgTable("products", {
     .defaultNow(),
 });
 
-// ── Product Options ───────────────────────────────────────────────────────────
-// Option groups for a product: "Color", "RAM", "Storage"
-// If a product has no options → it gets a single "Default" variant
-export const productOptions = pgTable("product_options", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  productId: uuid("product_id")
-    .notNull()
-    .references(() => products.id, { onDelete: "cascade" }),
-  name: varchar("name", { length: 100 }).notNull(), // e.g. "Color", "RAM"
-  position: integer("position").notNull().default(0),
-});
-
-// ── Product Option Values ─────────────────────────────────────────────────────
-// Possible values for each option: "Red", "Black" for Color
-export const productOptionValues = pgTable("product_option_values", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  optionId: uuid("option_id")
-    .notNull()
-    .references(() => productOptions.id, { onDelete: "cascade" }),
-  value: varchar("value", { length: 150 }).notNull(), // e.g. "Red", "8GB"
-  position: integer("position").notNull().default(0),
-});
-
-// ── Product Variants ──────────────────────────────────────────────────────────
-// Each variant = a sellable combination (Red + 8GB + 256GB)
-// Always at least 1 variant per product (the "Default" variant)
-export const productVariants = pgTable("product_variants", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  productId: uuid("product_id")
-    .notNull()
-    .references(() => products.id, { onDelete: "cascade" }),
-  name: varchar("name", { length: 255 }).notNull(), // "Red / 8GB / 256GB" or "Default"
-  sku: varchar("sku", { length: 100 }).notNull().unique(),
-  price: integer("price").notNull(), // in paise, always required
-  compareAtPrice: integer("compare_at_price"), // optional original price for discounts
-  images: jsonb("images")
-    .$type<Array<{ url: string; altText?: string }>>()
-    .notNull()
-    .default([]),
-  specs: jsonb("specs")
-    .$type<Array<{ key: string; value: string }>>()
-    .notNull()
-    .default([]),
-  stock: integer("stock").notNull().default(0),
-  lowStockThreshold: integer("low_stock_threshold").notNull().default(2),
-  isDefault: boolean("is_default").notNull().default(false),
-  isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
-
-// ── Variant Option Values (junction) ──────────────────────────────────────────
-// Links a variant to the specific option values that define it
-// e.g. Variant "Red/8GB" → [Color:Red, RAM:8GB]
-export const variantOptionValues = pgTable("variant_option_values", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  variantId: uuid("variant_id")
-    .notNull()
-    .references(() => productVariants.id, { onDelete: "cascade" }),
-  optionValueId: uuid("option_value_id")
-    .notNull()
-    .references(() => productOptionValues.id, { onDelete: "cascade" }),
-});
-
 // ── Relations ─────────────────────────────────────────────────────────────────
-
-export const productsRelations = relations(products, ({ one, many }) => ({
+export const productsRelations = relations(products, ({ one }) => ({
   category: one(categories, {
     fields: [products.categoryId],
     references: [categories.id],
   }),
-  options: many(productOptions),
-  variants: many(productVariants),
 }));
 
-export const productOptionsRelations = relations(
-  productOptions,
-  ({ one, many }) => ({
-    product: one(products, {
-      fields: [productOptions.productId],
-      references: [products.id],
-    }),
-    values: many(productOptionValues),
-  })
-);
-
-export const productOptionValuesRelations = relations(
-  productOptionValues,
-  ({ one, many }) => ({
-    option: one(productOptions, {
-      fields: [productOptionValues.optionId],
-      references: [productOptions.id],
-    }),
-    variantLinks: many(variantOptionValues),
-  })
-);
-
-export const productVariantsRelations = relations(
-  productVariants,
-  ({ one, many }) => ({
-    product: one(products, {
-      fields: [productVariants.productId],
-      references: [products.id],
-    }),
-    optionValues: many(variantOptionValues),
-  })
-);
-
-export const variantOptionValuesRelations = relations(
-  variantOptionValues,
-  ({ one }) => ({
-    variant: one(productVariants, {
-      fields: [variantOptionValues.variantId],
-      references: [productVariants.id],
-    }),
-    optionValue: one(productOptionValues, {
-      fields: [variantOptionValues.optionValueId],
-      references: [productOptionValues.id],
-    }),
-  })
-);
-
 // ── Types ─────────────────────────────────────────────────────────────────────
-
 export type Product = typeof products.$inferSelect;
 export type NewProduct = typeof products.$inferInsert;
-export type ProductOption = typeof productOptions.$inferSelect;
-export type ProductOptionValue = typeof productOptionValues.$inferSelect;
-export type ProductVariant = typeof productVariants.$inferSelect;
-export type NewProductVariant = typeof productVariants.$inferInsert;
-export type VariantImage = { url: string; altText?: string };
-export type VariantSpec = { key: string; value: string };

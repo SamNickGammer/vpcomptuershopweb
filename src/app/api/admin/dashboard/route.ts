@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { eq, sql, desc, count } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { products, orders, orderItems, productVariants } from "@/lib/db/schema";
+import { products, orders, orderItems } from "@/lib/db/schema";
 import { getAdminFromCookie } from "@/lib/auth/admin";
 
 export async function GET() {
@@ -33,12 +33,12 @@ export async function GET() {
       .where(eq(orders.paymentStatus, "paid"));
     const totalRevenue = Number(revenueResult.total);
 
-    // Low stock count — from product_variants
+    // Low stock count — from products table
     const [{ total: lowStockCount }] = await db
       .select({ total: count() })
-      .from(productVariants)
+      .from(products)
       .where(
-        sql`${productVariants.stock} <= ${productVariants.lowStockThreshold}`
+        sql`${products.stock} <= ${products.lowStockThreshold}`
       );
 
     // Recent orders (last 5) — fetch orders then items separately

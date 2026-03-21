@@ -9,7 +9,7 @@ import {
   jsonb,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { productVariants } from "./products";
+import { products } from "./products";
 
 export const orderStatusEnum = pgEnum("order_status", [
   "pending",
@@ -39,19 +39,17 @@ export const orders = pgTable("orders", {
   customerPhone: varchar("customer_phone", { length: 20 }),
   shippingAddress: jsonb("shipping_address").notNull(),
   status: orderStatusEnum("status").notNull().default("pending"),
-  // Payment
   paymentStatus: paymentStatusEnum("payment_status")
     .notNull()
     .default("pending"),
   paymentMethod: varchar("payment_method", { length: 30 })
     .notNull()
-    .default("cod"), // cod, online, upi, bank_transfer
+    .default("cod"),
   paidAt: timestamp("paid_at", { withTimezone: true }),
-  paymentReference: text("payment_reference"), // transaction ID, UPI ref, etc.
-  // Amounts
-  subtotalAmount: integer("subtotal_amount").notNull().default(0), // before discount
+  paymentReference: text("payment_reference"),
+  subtotalAmount: integer("subtotal_amount").notNull().default(0),
   discountAmount: integer("discount_amount").notNull().default(0),
-  totalAmount: integer("total_amount").notNull(), // final amount
+  totalAmount: integer("total_amount").notNull(),
   couponCode: varchar("coupon_code", { length: 50 }),
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -68,7 +66,8 @@ export const orderItems = pgTable("order_items", {
   orderId: uuid("order_id")
     .notNull()
     .references(() => orders.id, { onDelete: "cascade" }),
-  variantId: uuid("variant_id").references(() => productVariants.id),
+  productId: uuid("product_id").references(() => products.id),
+  variantId: text("variant_id"),
   productName: varchar("product_name", { length: 255 }).notNull(),
   variantName: varchar("variant_name", { length: 255 }),
   quantity: integer("quantity").notNull(),
@@ -85,9 +84,9 @@ export const orderItemsRelations = relations(orderItems, ({ one }) => ({
     fields: [orderItems.orderId],
     references: [orders.id],
   }),
-  variant: one(productVariants, {
-    fields: [orderItems.variantId],
-    references: [productVariants.id],
+  product: one(products, {
+    fields: [orderItems.productId],
+    references: [products.id],
   }),
 }));
 

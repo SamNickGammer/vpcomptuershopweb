@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import {
   ShoppingBag,
   UserCircle,
@@ -12,6 +12,8 @@ import {
   LogOut,
   User,
   ChevronDown,
+  Search,
+  Grid3X3,
 } from "lucide-react";
 import { cn } from "@/lib/utils/helpers";
 import { useCart } from "@/hooks/useCart";
@@ -23,6 +25,7 @@ const NAV_LINKS = [
   { href: "/products", label: "Products" },
   { href: "/categories", label: "Categories" },
   { href: "/track-order", label: "Track Order" },
+  { href: "/products?featured=true", label: "Deals" },
 ];
 
 export default function Header() {
@@ -32,14 +35,8 @@ export default function Header() {
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const {
-    items,
-    totalItems,
-    totalPrice,
-    updateQuantity,
-    removeItem,
-  } = useCart();
-
+  const { items, totalItems, totalPrice, updateQuantity, removeItem } =
+    useCart();
   const { user, loading, openAuthModal, logout } = useAuth();
 
   function isActive(href: string) {
@@ -70,58 +67,36 @@ export default function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 h-16 border-b border-border bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      {/* ── Row 1: Main Header (sticky) ─────────────────────────────────────── */}
+      <header className="sticky top-0 z-40 bg-white border-b border-[#e5e7eb] shadow-sm">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
+          <Link href="/" className="flex-shrink-0 flex items-center gap-2">
             <Image
-              src="/logo/LogoSmall.svg"
+              src="/logo/LOGO_v&P.svg"
               alt="V&P Computer"
-              width={36}
-              height={36}
-              className="h-9 w-auto"
+              width={160}
+              height={40}
+              className="h-10 w-auto"
               priority
               unoptimized
             />
-            <span className="text-lg font-bold tracking-tight text-foreground hidden sm:inline">
-              V&P <span className="text-primary">Computer</span>
-            </span>
           </Link>
 
-          {/* Desktop Nav */}
-          <nav className="hidden items-center gap-1 md:flex">
-            {NAV_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  "rounded-md px-3.5 py-2 text-sm font-medium transition-colors",
-                  isActive(link.href)
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                )}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
+          {/* Search Bar (center, hidden on mobile) */}
+          <div className="hidden md:flex flex-1 max-w-xl mx-6">
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6b7280]" />
+              <input
+                type="text"
+                placeholder="Search for laptops, processors, RAM, motherboards..."
+                className="w-full h-10 pl-10 pr-4 rounded-lg border border-[#e5e7eb] bg-white text-[#1a1a1a] placeholder:text-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#EF9822]/40 focus:border-[#EF9822] transition-all text-sm"
+              />
+            </div>
+          </div>
 
           {/* Right Actions */}
-          <div className="flex items-center gap-2">
-            {/* Cart Button */}
-            <button
-              onClick={() => setCartOpen(true)}
-              className="relative flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              aria-label="Open cart"
-            >
-              <ShoppingBag className="h-5 w-5" />
-              {totalItems > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
-                  {totalItems > 99 ? "99+" : totalItems}
-                </span>
-              )}
-            </button>
-
+          <div className="flex items-center gap-1 sm:gap-2">
             {/* User Button / Dropdown */}
             {!loading && (
               <>
@@ -129,15 +104,15 @@ export default function Header() {
                   <div className="relative" ref={dropdownRef}>
                     <button
                       onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                      className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                      className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-[#4b5563] transition-colors hover:bg-[#f5f5f5] hover:text-[#1a1a1a]"
                       aria-label="User menu"
                     >
-                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-primary">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#EF9822]/15 text-[#EF9822]">
                         <span className="text-xs font-bold">
                           {user.name.charAt(0).toUpperCase()}
                         </span>
                       </div>
-                      <span className="hidden text-foreground sm:inline max-w-[100px] truncate">
+                      <span className="hidden text-[#1a1a1a] sm:inline max-w-[100px] truncate">
                         {user.name.split(" ")[0]}
                       </span>
                       <ChevronDown
@@ -150,12 +125,12 @@ export default function Header() {
 
                     {/* Dropdown */}
                     {userDropdownOpen && (
-                      <div className="absolute right-0 top-full mt-2 w-52 rounded-lg border border-border bg-background shadow-xl z-50">
-                        <div className="border-b border-border px-4 py-3">
-                          <p className="text-sm font-medium text-foreground truncate">
+                      <div className="absolute right-0 top-full mt-2 w-52 rounded-lg border border-[#e5e7eb] bg-white shadow-xl z-50">
+                        <div className="border-b border-[#e5e7eb] px-4 py-3">
+                          <p className="text-sm font-medium text-[#1a1a1a] truncate">
                             {user.name}
                           </p>
-                          <p className="text-xs text-muted-foreground truncate">
+                          <p className="text-xs text-[#6b7280] truncate">
                             {user.email}
                           </p>
                         </div>
@@ -163,14 +138,14 @@ export default function Header() {
                           <Link
                             href="/account"
                             onClick={() => setUserDropdownOpen(false)}
-                            className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                            className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm text-[#4b5563] transition-colors hover:bg-[#f5f5f5] hover:text-[#1a1a1a]"
                           >
                             <User className="h-4 w-4" />
                             My Account
                           </Link>
                           <button
                             onClick={handleLogout}
-                            className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                            className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-[#4b5563] transition-colors hover:bg-[#f5f5f5] hover:text-[#1a1a1a]"
                           >
                             <LogOut className="h-4 w-4" />
                             Log Out
@@ -182,7 +157,7 @@ export default function Header() {
                 ) : (
                   <button
                     onClick={() => openAuthModal("login")}
-                    className="flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                    className="flex h-10 w-10 items-center justify-center rounded-lg text-[#4b5563] transition-colors hover:bg-[#f5f5f5] hover:text-[#1a1a1a]"
                     aria-label="Sign in"
                   >
                     <UserCircle className="h-5 w-5" />
@@ -194,14 +169,28 @@ export default function Header() {
             {/* Loading placeholder */}
             {loading && (
               <div className="flex h-10 w-10 items-center justify-center">
-                <div className="h-5 w-5 rounded-full bg-muted animate-pulse" />
+                <div className="h-5 w-5 rounded-full bg-[#e5e7eb] animate-pulse" />
               </div>
             )}
+
+            {/* Cart Button */}
+            <button
+              onClick={() => setCartOpen(true)}
+              className="relative flex h-10 w-10 items-center justify-center rounded-lg text-[#4b5563] transition-colors hover:bg-[#f5f5f5] hover:text-[#1a1a1a]"
+              aria-label="Open cart"
+            >
+              <ShoppingBag className="h-5 w-5" />
+              {totalItems > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#EF9822] px-1 text-[10px] font-bold text-white">
+                  {totalItems > 99 ? "99+" : totalItems}
+                </span>
+              )}
+            </button>
 
             {/* Mobile Menu Toggle */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground md:hidden"
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-[#4b5563] transition-colors hover:bg-[#f5f5f5] hover:text-[#1a1a1a] md:hidden"
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? (
@@ -213,32 +202,84 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Mobile Nav */}
-        <div
-          className={cn(
-            "overflow-hidden border-b border-border bg-background transition-all duration-200 md:hidden",
-            mobileMenuOpen ? "max-h-64" : "max-h-0 border-b-0"
-          )}
-        >
-          <nav className="flex flex-col gap-1 px-4 py-3">
+        {/* Mobile search (visible below header on mobile) */}
+        <div className="md:hidden border-t border-[#e5e7eb] px-4 py-2">
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6b7280]" />
+            <input
+              type="text"
+              placeholder="Search products..."
+              className="w-full h-9 pl-10 pr-4 rounded-lg border border-[#e5e7eb] bg-white text-[#1a1a1a] placeholder:text-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#EF9822]/40 focus:border-[#EF9822] transition-all text-sm"
+            />
+          </div>
+        </div>
+      </header>
+
+      {/* ── Row 2: Navigation bar ───────────────────────────────────────────── */}
+      <nav className="hidden md:block bg-[#f5f5f5] border-b border-[#e5e7eb]">
+        <div className="mx-auto flex max-w-7xl items-center gap-0 px-4 sm:px-6 lg:px-8">
+          {/* All Categories button */}
+          <Link
+            href="/categories"
+            className="flex items-center gap-2 bg-[#EF9822] text-white font-semibold text-sm px-5 py-2.5 hover:bg-[#d9881d] transition-colors"
+          >
+            <Grid3X3 className="h-4 w-4" />
+            All Categories
+          </Link>
+
+          {/* Nav links */}
+          <div className="flex items-center">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                onClick={() => setMobileMenuOpen(false)}
                 className={cn(
-                  "rounded-md px-4 py-2.5 text-sm font-medium transition-colors",
+                  "px-4 py-2.5 text-sm font-medium transition-colors",
                   isActive(link.href)
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    ? "text-[#EF9822] border-b-2 border-[#EF9822]"
+                    : "text-[#4b5563] hover:text-[#EF9822]"
                 )}
               >
                 {link.label}
               </Link>
             ))}
-          </nav>
+          </div>
         </div>
-      </header>
+      </nav>
+
+      {/* ── Mobile Nav ──────────────────────────────────────────────────────── */}
+      <div
+        className={cn(
+          "overflow-hidden border-b border-[#e5e7eb] bg-white transition-all duration-200 md:hidden",
+          mobileMenuOpen ? "max-h-96" : "max-h-0 border-b-0"
+        )}
+      >
+        <nav className="flex flex-col gap-1 px-4 py-3">
+          <Link
+            href="/categories"
+            onClick={() => setMobileMenuOpen(false)}
+            className="flex items-center gap-2 rounded-lg bg-[#EF9822] text-white px-4 py-2.5 text-sm font-semibold mb-1"
+          >
+            <Grid3X3 className="h-4 w-4" />
+            All Categories
+          </Link>
+          {NAV_LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              onClick={() => setMobileMenuOpen(false)}
+              className={cn(
+                "rounded-lg px-4 py-2.5 text-sm font-medium transition-colors",
+                isActive(link.href)
+                  ? "bg-[#FFF3E0] text-[#EF9822]"
+                  : "text-[#4b5563] hover:bg-[#f5f5f5] hover:text-[#1a1a1a]"
+              )}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+      </div>
 
       {/* Cart Sidebar */}
       <CartSidebar

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { orders, orderItems } from "@/lib/db/schema/orders";
-import { productVariants } from "@/lib/db/schema/products";
+import { products } from "@/lib/db/schema/products";
 import { inventoryHistory } from "@/lib/db/schema/inventory";
 import { trackingEvents } from "@/lib/db/schema/tracking";
 import { coupons } from "@/lib/db/schema/coupons";
@@ -10,9 +10,10 @@ import { getCustomerFromCookie } from "@/lib/auth/customer";
 import { generateInternalTrackingCode } from "@/lib/utils/tracking";
 
 type OrderItemInput = {
-  variantId: string;
+  productId: string;
+  variantId?: string; // optional variantId within product's variants JSONB
   productName: string;
-  variantName: string;
+  variantName?: string;
   quantity: number;
   unitPrice: number;
 };
@@ -81,26 +82,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate all variants exist and have enough stock
-    const variantIds = body.items.map((i) => i.variantId);
-    const variants = await db
-      .select({ id: productVariants.id, stock: productVariants.stock, price: productVariants.price })
-      .from(productVariants)
-      .where(sql`${productVariants.id} IN ${variantIds}`);
+    // Validate all products exist and have enough stock
+    const productIds = [...new Set(body.items.map((i) => i.productId))];
+    const productRows = await db
+      .select()
+      .from(products)
+      .where(sql`${products.id} IN ${productIds}`);
 
-    const variantMap = new Map(variants.map((v) => [v.id, v]));
+    const productMap = new Map(productRows.map((p) => [p.id, p]));
 
     for (const item of body.items) {
-      const variant = variantMap.get(item.variantId);
-      if (!variant) {
+      const product = productMap.get(item.productId);
+      if (!product) {
         return NextResponse.json(
-          { error: `Product variant not found: ${item.productName}` },
+          { error: `Product not found: ${item.productName}` },
           { status: 400 }
         );
       }
-      if (variant.stock < item.quantity) {
+      if (product.stock < item.quantity) {
         return NextResponse.json(
-          { error: `Insufficient stock for "${item.productName}". Available: ${variant.stock}` },
+          { error: `Insufficient stock for "${item.productName}". Available: ${product.stock}` },
           { status: 400 }
         );
       }
@@ -109,8 +110,22 @@ export async function POST(req: NextRequest) {
     // Calculate subtotal from DB prices (use server-side prices for security)
     let subtotalAmount = 0;
     for (const item of body.items) {
-      const variant = variantMap.get(item.variantId)!;
-      subtotalAmount += variant.price * item.quantity;
+      const product = productMap.get(item.productId)!;
+
+      // If a variantId is specified, use the variant price
+      let price = product.basePrice;
+      if (item.variantId) {
+        const variantsArr = (product.variants ?? []) as Array<{
+          variantId: string;
+          price: number;
+        }>;
+        const variant = variantsArr.find((v) => v.variantId === item.variantId);
+        if (variant) {
+          price = variant.price;
+        }
+      }
+
+      subtotalAmount += price * item.quantity;
     }
 
     // Apply coupon if provided
@@ -171,7 +186,7 @@ export async function POST(req: NextRequest) {
         customerPhone: body.customerPhone || null,
         shippingAddress: body.shippingAddress,
         status: "pending",
-        paymentStatus: body.paymentMethod === "cod" ? "pending" : "pending",
+        paymentStatus: "pending",
         paymentMethod: body.paymentMethod,
         subtotalAmount,
         discountAmount,
@@ -183,29 +198,48 @@ export async function POST(req: NextRequest) {
     const orderId = newOrder.id;
 
     // Create order items
-    const orderItemValues = body.items.map((item) => ({
-      orderId,
-      variantId: item.variantId,
-      productName: item.productName,
-      variantName: item.variantName || null,
-      quantity: item.quantity,
-      unitPrice: variantMap.get(item.variantId)!.price,
-    }));
+    const orderItemValues = body.items.map((item) => {
+      const product = productMap.get(item.productId)!;
+
+      // Determine price from variant or base
+      let price = product.basePrice;
+      if (item.variantId) {
+        const variantsArr = (product.variants ?? []) as Array<{
+          variantId: string;
+          price: number;
+        }>;
+        const variant = variantsArr.find((v) => v.variantId === item.variantId);
+        if (variant) {
+          price = variant.price;
+        }
+      }
+
+      return {
+        orderId,
+        productId: item.productId,
+        variantId: item.variantId || null,
+        productName: item.productName,
+        variantName: item.variantName || null,
+        quantity: item.quantity,
+        unitPrice: price,
+      };
+    });
 
     await db.insert(orderItems).values(orderItemValues);
 
-    // Decrement stock and create inventory history
+    // Decrement stock on products table and create inventory history
     for (const item of body.items) {
       await db
-        .update(productVariants)
+        .update(products)
         .set({
-          stock: sql`${productVariants.stock} - ${item.quantity}`,
+          stock: sql`${products.stock} - ${item.quantity}`,
           updatedAt: new Date(),
         })
-        .where(eq(productVariants.id, item.variantId));
+        .where(eq(products.id, item.productId));
 
       await db.insert(inventoryHistory).values({
-        variantId: item.variantId,
+        productId: item.productId,
+        variantId: item.variantId || null,
         changeQuantity: -item.quantity,
         reason: "sale",
         note: `Order ${orderNumber}`,

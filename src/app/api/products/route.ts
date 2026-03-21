@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import {
-  products,
-  productVariants,
-  categories,
-} from "@/lib/db/schema";
+import { products, categories } from "@/lib/db/schema";
 import { eq, and, ilike, sql, asc, desc } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
@@ -42,10 +38,10 @@ export async function GET(request: NextRequest) {
     let orderByClause;
     switch (sort) {
       case "price_asc":
-        orderByClause = asc(products.createdAt); // will sort in JS after joining variants
+        orderByClause = asc(products.basePrice);
         break;
       case "price_desc":
-        orderByClause = desc(products.createdAt);
+        orderByClause = desc(products.basePrice);
         break;
       case "newest":
       default:
@@ -64,15 +60,8 @@ export async function GET(request: NextRequest) {
     // Get products with category name
     const productRows = await db
       .select({
-        id: products.id,
-        name: products.name,
-        slug: products.slug,
-        description: products.description,
-        condition: products.condition,
-        categoryId: products.categoryId,
+        product: products,
         categoryName: categories.name,
-        isFeatured: products.isFeatured,
-        createdAt: products.createdAt,
       })
       .from(products)
       .leftJoin(categories, eq(products.categoryId, categories.id))
@@ -81,57 +70,41 @@ export async function GET(request: NextRequest) {
       .limit(limit)
       .offset(offset);
 
-    // Get variant info for these products
-    const productIds = productRows.map((p) => p.id);
-
-    if (productIds.length === 0) {
-      return NextResponse.json({
-        success: true,
-        data: {
-          products: [],
-          pagination: { page, limit, total, totalPages: 0 },
-        },
-      });
-    }
-
-    // Fetch all active variants for these products
-    const variants = await db
-      .select({
-        productId: productVariants.productId,
-        price: productVariants.price,
-        compareAtPrice: productVariants.compareAtPrice,
-        images: productVariants.images,
-        stock: productVariants.stock,
-        isDefault: productVariants.isDefault,
-      })
-      .from(productVariants)
-      .where(
-        and(
-          eq(productVariants.isActive, true),
-          sql`${productVariants.productId} IN ${productIds}`
-        )
-      );
-
-    // Group variants by product
-    const variantsByProduct = new Map<
-      string,
-      (typeof variants)[number][]
-    >();
-    for (const v of variants) {
-      const arr = variantsByProduct.get(v.productId) || [];
-      arr.push(v);
-      variantsByProduct.set(v.productId, arr);
-    }
-
     // Build response
-    const productsData = productRows.map((p) => {
-      const pvs = variantsByProduct.get(p.id) || [];
-      const defaultVariant = pvs.find((v) => v.isDefault) || pvs[0];
-      const prices = pvs.map((v) => v.price);
-      const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-      const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+    const productsData = productRows.map((row) => {
+      const p = row.product;
+      const variantsArr = (p.variants ?? []) as Array<{
+        variantId: string;
+        name: string;
+        price: number;
+        compareAtPrice?: number | null;
+        stock: number;
+        images: Array<{ url: string; altText?: string }>;
+        isDefault?: boolean;
+        isActive?: boolean;
+      }>;
 
-      const images = defaultVariant?.images as Array<{ url: string; altText?: string }> | undefined;
+      // Filter active variants
+      const activeVariants = variantsArr.filter((v) => v.isActive !== false);
+
+      const prices =
+        activeVariants.length > 0
+          ? activeVariants.map((v) => v.price)
+          : [p.basePrice];
+      const minPrice = Math.min(...prices);
+      const maxPrice = Math.max(...prices);
+
+      const defaultVariant = activeVariants.find((v) => v.isDefault) ?? activeVariants[0];
+
+      const image =
+        p.images && p.images.length > 0
+          ? p.images[0]
+          : defaultVariant?.images?.[0] ?? null;
+
+      const inStock =
+        activeVariants.length > 0
+          ? activeVariants.some((v) => v.stock > 0)
+          : p.stock > 0;
 
       return {
         id: p.id,
@@ -140,31 +113,17 @@ export async function GET(request: NextRequest) {
         description: p.description,
         condition: p.condition,
         categoryId: p.categoryId,
-        categoryName: p.categoryName,
+        categoryName: row.categoryName,
         isFeatured: p.isFeatured,
-        defaultVariant: defaultVariant
-          ? {
-              price: defaultVariant.price,
-              compareAtPrice: defaultVariant.compareAtPrice,
-              image: images?.[0] ?? null,
-              inStock: defaultVariant.stock > 0,
-            }
-          : null,
-        variantsCount: pvs.length,
+        basePrice: p.basePrice,
+        compareAtPrice: p.compareAtPrice,
+        image,
+        inStock,
+        variantsCount: activeVariants.length,
         priceRange: { min: minPrice, max: maxPrice },
+        createdAt: p.createdAt,
       };
     });
-
-    // Sort by price if needed (since we couldn't do it in SQL easily with variants)
-    if (sort === "price_asc") {
-      productsData.sort(
-        (a, b) => (a.priceRange.min || 0) - (b.priceRange.min || 0)
-      );
-    } else if (sort === "price_desc") {
-      productsData.sort(
-        (a, b) => (b.priceRange.min || 0) - (a.priceRange.min || 0)
-      );
-    }
 
     return NextResponse.json({
       success: true,

@@ -1,63 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { eq, like, and, sql, desc, count } from "drizzle-orm";
+import { like, and, desc, count, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import {
-  products,
-  productVariants,
-  productOptions,
-  productOptionValues,
-  variantOptionValues,
-  categories,
-} from "@/lib/db/schema";
+import { products, categories } from "@/lib/db/schema";
 import { getAdminFromCookie } from "@/lib/auth/admin";
 import { slugify } from "@/lib/utils/helpers";
 
+const variantSchema = z.object({
+  variantId: z.string().min(1),
+  name: z.string().min(1).max(255),
+  sku: z.string().min(1).max(100),
+  price: z.number().int().min(0),
+  compareAtPrice: z.number().int().min(0).optional().nullable(),
+  images: z
+    .array(z.object({ url: z.string().min(1), altText: z.string().optional() }))
+    .optional()
+    .default([]),
+  specs: z
+    .array(z.object({ key: z.string().min(1), value: z.string().min(1) }))
+    .optional()
+    .default([]),
+  stock: z.number().int().min(0).default(0),
+  isDefault: z.boolean().optional().default(false),
+  isActive: z.boolean().optional().default(true),
+});
+
 const createProductSchema = z.object({
   name: z.string().min(1).max(255),
-  description: z.string().optional(),
+  description: z.string().optional().nullable(),
   categoryId: z.string().optional().nullable(),
   condition: z.enum(["new", "refurbished", "used"]),
-  isFeatured: z.boolean().optional(),
-  isActive: z.boolean().optional(),
-  options: z
-    .array(
-      z.object({
-        name: z.string().min(1).max(100),
-        values: z.array(z.string().min(1).max(150)).min(1),
-      })
-    )
-    .optional(),
-  variants: z
-    .array(
-      z.object({
-        name: z.string().min(1).max(255),
-        sku: z.string().min(1).max(100),
-        price: z.number().int().min(0),
-        compareAtPrice: z.number().int().min(0).optional().nullable(),
-        images: z
-          .array(
-            z.object({
-              url: z.string().min(1),
-              altText: z.string().optional(),
-            })
-          )
-          .optional(),
-        specs: z
-          .array(
-            z.object({
-              key: z.string().min(1),
-              value: z.string().min(1),
-            })
-          )
-          .optional(),
-        stock: z.number().int().min(0).optional(),
-        lowStockThreshold: z.number().int().min(0).optional(),
-        isDefault: z.boolean().optional(),
-        optionValueIndices: z.array(z.number().int().min(0)).optional(),
-      })
-    )
-    .optional(),
+  sku: z.string().max(100).optional().nullable(),
+  basePrice: z.number().int().min(0).default(0),
+  compareAtPrice: z.number().int().min(0).optional().nullable(),
+  images: z
+    .array(z.object({ url: z.string().min(1), altText: z.string().optional() }))
+    .optional()
+    .default([]),
+  specs: z
+    .array(z.object({ key: z.string().min(1), value: z.string().min(1) }))
+    .optional()
+    .default([]),
+  stock: z.number().int().min(0).default(0),
+  lowStockThreshold: z.number().int().min(0).default(2),
+  variants: z.array(variantSchema).optional().default([]),
+  isFeatured: z.boolean().optional().default(false),
+  isActive: z.boolean().optional().default(true),
 });
 
 export async function GET(request: NextRequest) {
@@ -120,39 +108,40 @@ export async function GET(request: NextRequest) {
       .limit(limit)
       .offset(offset);
 
-    // Get variants for these products
-    const productIds = productRows.map((r) => r.product.id);
-
-    let allVariants: (typeof productVariants.$inferSelect)[] = [];
-
-    if (productIds.length > 0) {
-      allVariants = await db
-        .select()
-        .from(productVariants)
-        .where(sql`${productVariants.productId} IN ${productIds}`);
-    }
-
     const data = productRows.map((row) => {
-      const variants = allVariants.filter(
-        (v) => v.productId === row.product.id
-      );
-      const prices = variants.map((v) => v.price);
-      const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-      const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
-      const totalStock = variants.reduce((sum, v) => sum + v.stock, 0);
+      const p = row.product;
+      const variantsArr = (p.variants ?? []) as Array<{
+        variantId: string;
+        name: string;
+        price: number;
+        stock: number;
+        images: Array<{ url: string; altText?: string }>;
+        isDefault?: boolean;
+      }>;
 
-      // Get first image from first variant (prefer default variant)
-      const defaultVariant =
-        variants.find((v) => v.isDefault) ?? variants[0];
+      const prices =
+        variantsArr.length > 0
+          ? variantsArr.map((v) => v.price)
+          : [p.basePrice];
+      const minPrice = Math.min(...prices);
+      const maxPrice = Math.max(...prices);
+
+      const totalStock =
+        variantsArr.length > 0
+          ? variantsArr.reduce((sum, v) => sum + v.stock, 0)
+          : p.stock;
+
       const firstImage =
-        defaultVariant?.images && defaultVariant.images.length > 0
-          ? defaultVariant.images[0]
-          : null;
+        p.images && p.images.length > 0
+          ? p.images[0]
+          : variantsArr.length > 0 && variantsArr[0].images?.length > 0
+            ? variantsArr[0].images[0]
+            : null;
 
       return {
-        ...row.product,
+        ...p,
         categoryName: row.categoryName,
-        variantsCount: variants.length,
+        variantsCount: variantsArr.length,
         priceRange: { min: minPrice, max: maxPrice },
         firstImage,
         totalStock,
@@ -207,10 +196,16 @@ export async function POST(request: NextRequest) {
       description,
       categoryId,
       condition,
+      sku,
+      basePrice,
+      compareAtPrice,
+      images,
+      specs,
+      stock,
+      lowStockThreshold,
+      variants,
       isFeatured,
       isActive,
-      options,
-      variants,
     } = parsed.data;
 
     // Generate unique slug
@@ -225,120 +220,29 @@ export async function POST(request: NextRequest) {
       slug = `${slugify(name)}-${suffix}`;
     }
 
-    const result = await db.transaction(async (tx) => {
-      // Insert product
-      const [product] = await tx
-        .insert(products)
-        .values({
-          name,
-          slug,
-          description: description ?? null,
-          categoryId: categoryId ?? null,
-          condition,
-          isFeatured: isFeatured ?? false,
-          isActive: isActive ?? true,
-        })
-        .returning();
-
-      // Insert options and collect created option values
-      // optionValuesMap[optionIndex][valueIndex] = optionValueId
-      const optionValuesMap: string[][] = [];
-
-      if (options && options.length > 0) {
-        for (let oi = 0; oi < options.length; oi++) {
-          const opt = options[oi];
-          const [createdOption] = await tx
-            .insert(productOptions)
-            .values({
-              productId: product.id,
-              name: opt.name,
-              position: oi,
-            })
-            .returning();
-
-          const valueIds: string[] = [];
-          for (let vi = 0; vi < opt.values.length; vi++) {
-            const [createdValue] = await tx
-              .insert(productOptionValues)
-              .values({
-                optionId: createdOption.id,
-                value: opt.values[vi],
-                position: vi,
-              })
-              .returning();
-            valueIds.push(createdValue.id);
-          }
-          optionValuesMap.push(valueIds);
-        }
-      }
-
-      // Insert variants
-      let insertedVariants: (typeof productVariants.$inferSelect)[] = [];
-
-      if (variants && variants.length > 0) {
-        for (const v of variants) {
-          const [createdVariant] = await tx
-            .insert(productVariants)
-            .values({
-              productId: product.id,
-              name: v.name,
-              sku: v.sku,
-              price: v.price,
-              compareAtPrice: v.compareAtPrice ?? null,
-              images: v.images ?? [],
-              specs: v.specs ?? [],
-              stock: v.stock ?? 0,
-              lowStockThreshold: v.lowStockThreshold ?? 2,
-              isDefault: v.isDefault ?? false,
-            })
-            .returning();
-
-          // Link variant to option values
-          if (
-            v.optionValueIndices &&
-            v.optionValueIndices.length > 0 &&
-            optionValuesMap.length > 0
-          ) {
-            for (let oi = 0; oi < v.optionValueIndices.length; oi++) {
-              const vi = v.optionValueIndices[oi];
-              if (optionValuesMap[oi] && optionValuesMap[oi][vi]) {
-                await tx.insert(variantOptionValues).values({
-                  variantId: createdVariant.id,
-                  optionValueId: optionValuesMap[oi][vi],
-                });
-              }
-            }
-          }
-
-          insertedVariants.push(createdVariant);
-        }
-      } else {
-        // No variants provided — create a single Default variant
-        const [defaultVariant] = await tx
-          .insert(productVariants)
-          .values({
-            productId: product.id,
-            name: "Default",
-            sku: `${slug}-default`,
-            price: 0,
-            images: [],
-            specs: [],
-            stock: 0,
-            lowStockThreshold: 2,
-            isDefault: true,
-          })
-          .returning();
-        insertedVariants.push(defaultVariant);
-      }
-
-      return {
-        ...product,
-        variants: insertedVariants,
-      };
-    });
+    const [product] = await db
+      .insert(products)
+      .values({
+        name,
+        slug,
+        description: description ?? null,
+        categoryId: categoryId ?? null,
+        condition,
+        sku: sku ?? null,
+        basePrice,
+        compareAtPrice: compareAtPrice ?? null,
+        images,
+        specs,
+        stock,
+        lowStockThreshold,
+        variants,
+        isFeatured,
+        isActive,
+      })
+      .returning();
 
     return NextResponse.json(
-      { success: true, data: result },
+      { success: true, data: product },
       { status: 201 }
     );
   } catch (error) {

@@ -13,13 +13,13 @@ export default function StoreLayout({
 }) {
   return (
     <AuthProvider>
-      <div className="flex min-h-screen flex-col">
+      <div className="store-theme flex min-h-screen flex-col bg-background text-foreground">
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
       </div>
       <AuthModal />
-      <Toaster theme="dark" position="top-right" richColors />
+      <Toaster theme="light" position="top-right" richColors />
     </AuthProvider>
   );
 }

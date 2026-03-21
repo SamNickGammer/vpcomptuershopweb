@@ -52,7 +52,6 @@ export async function GET(
 
     const { id } = await params;
 
-    // Fetch order
     const [order] = await db
       .select()
       .from(orders)
@@ -66,20 +65,17 @@ export async function GET(
       );
     }
 
-    // Fetch items
     const items = await db
       .select()
       .from(orderItems)
       .where(eq(orderItems.orderId, id));
 
-    // Fetch tracking events ordered by createdAt asc
     const events = await db
       .select()
       .from(trackingEvents)
       .where(eq(trackingEvents.orderId, id))
       .orderBy(asc(trackingEvents.createdAt));
 
-    // Fetch shipment
     const [shipment] = await db
       .select()
       .from(shipments)
@@ -130,7 +126,6 @@ export async function PUT(
       );
     }
 
-    // Check order exists
     const [existing] = await db
       .select()
       .from(orders)
@@ -159,7 +154,6 @@ export async function PUT(
         .where(eq(orders.id, id))
         .returning();
 
-      // Create tracking event when status changes
       if (status && status !== existing.status) {
         await tx.insert(trackingEvents).values({
           orderId: id,

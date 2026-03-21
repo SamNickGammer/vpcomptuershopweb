@@ -49,6 +49,20 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
+type ProductImage = { url: string; altText?: string };
+type ProductVariant = {
+  variantId: string;
+  name: string;
+  sku: string;
+  price: number;
+  compareAtPrice?: number | null;
+  images: ProductImage[];
+  specs: Array<{ key: string; value: string }>;
+  stock: number;
+  isDefault?: boolean;
+  isActive?: boolean;
+};
+
 type Product = {
   id: string;
   name: string;
@@ -56,14 +70,17 @@ type Product = {
   description: string | null;
   categoryId: string | null;
   condition: "new" | "refurbished" | "used";
+  sku: string | null;
+  basePrice: number;
+  compareAtPrice: number | null;
+  images: ProductImage[];
+  stock: number;
+  lowStockThreshold: number;
+  variants: ProductVariant[];
   isFeatured: boolean;
   isActive: boolean;
   createdAt: string;
   categoryName: string | null;
-  variantsCount: number;
-  priceRange: { min: number; max: number };
-  firstImage: { url: string; altText?: string } | null;
-  totalStock: number;
 };
 
 type Category = {
@@ -73,10 +90,7 @@ type Category = {
   parentId: string | null;
 };
 
-const CONDITION_BADGE: Record<
-  string,
-  { label: string; className: string }
-> = {
+const CONDITION_BADGE: Record<string, { label: string; className: string }> = {
   new: {
     label: "New",
     className:
@@ -95,11 +109,6 @@ const CONDITION_BADGE: Record<
 };
 
 const LIMIT = 20;
-
-function displayPriceRange(pr: { min: number; max: number }): string {
-  if (pr.min === pr.max) return formatPrice(pr.min);
-  return `${formatPrice(pr.min)} – ${formatPrice(pr.max)}`;
-}
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -327,7 +336,7 @@ export default function ProductsPage() {
                       Name
                     </TableHead>
                     <TableHead className="hidden md:table-cell text-muted-foreground">
-                      Category
+                      SKU
                     </TableHead>
                     <TableHead className="text-muted-foreground">
                       Price
@@ -338,11 +347,11 @@ export default function ProductsPage() {
                     <TableHead className="hidden sm:table-cell text-muted-foreground">
                       Condition
                     </TableHead>
-                    <TableHead className="hidden sm:table-cell text-muted-foreground">
-                      Status
-                    </TableHead>
                     <TableHead className="hidden lg:table-cell text-muted-foreground">
                       Variants
+                    </TableHead>
+                    <TableHead className="hidden sm:table-cell text-muted-foreground">
+                      Status
                     </TableHead>
                     <TableHead className="text-right text-muted-foreground">
                       Actions
@@ -351,9 +360,22 @@ export default function ProductsPage() {
                 </TableHeader>
                 <TableBody>
                   {products.map((product) => {
-                    const img = product.firstImage;
+                    const img =
+                      product.images && product.images.length > 0
+                        ? product.images[0]
+                        : null;
                     const conditionInfo = CONDITION_BADGE[product.condition];
-                    const totalStock = product.totalStock;
+                    const variantsCount = product.variants
+                      ? product.variants.length
+                      : 0;
+                    const totalStock =
+                      variantsCount > 0
+                        ? product.variants.reduce(
+                            (sum, v) => sum + v.stock,
+                            0
+                          )
+                        : product.stock;
+
                     return (
                       <TableRow
                         key={product.id}
@@ -381,17 +403,17 @@ export default function ProductsPage() {
                             {product.name}
                           </div>
                           <div className="text-xs text-muted-foreground mt-0.5">
-                            {product.slug}
+                            {product.categoryName || "Uncategorized"}
                           </div>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          <span className="text-muted-foreground text-sm">
-                            {product.categoryName || "Uncategorized"}
+                          <span className="font-mono text-sm text-muted-foreground">
+                            {product.sku || "--"}
                           </span>
                         </TableCell>
                         <TableCell>
                           <span className="font-mono text-sm font-medium text-foreground">
-                            {displayPriceRange(product.priceRange)}
+                            {formatPrice(product.basePrice)}
                           </span>
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
@@ -400,7 +422,7 @@ export default function ProductsPage() {
                               "text-sm font-medium",
                               totalStock === 0
                                 ? "text-red-400"
-                                : totalStock <= 5
+                                : totalStock <= product.lowStockThreshold
                                   ? "text-amber-400"
                                   : "text-foreground"
                             )}
@@ -419,6 +441,11 @@ export default function ProductsPage() {
                             {conditionInfo.label}
                           </Badge>
                         </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          <span className="text-sm text-muted-foreground">
+                            {variantsCount}
+                          </span>
+                        </TableCell>
                         <TableCell className="hidden sm:table-cell">
                           <Badge
                             variant="outline"
@@ -431,11 +458,6 @@ export default function ProductsPage() {
                           >
                             {product.isActive ? "Active" : "Inactive"}
                           </Badge>
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          <span className="text-sm text-muted-foreground">
-                            {product.variantsCount}
-                          </span>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
@@ -516,8 +538,8 @@ export default function ProductsPage() {
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">
               Are you sure you want to delete &ldquo;{deleteTarget?.name}
-              &rdquo;? This will also remove all variants and their images,
-              specs, and stock data. This action cannot be undone.
+              &rdquo;? This will remove all product data including variants.
+              This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
