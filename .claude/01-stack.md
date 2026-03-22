@@ -11,7 +11,7 @@
 | ORM        | Drizzle ORM             | Schema in `src/lib/db/schema/`               |
 | Database   | Supabase (PostgreSQL)   | Swap DB = change `drizzle.config.ts` only    |
 | Storage    | Supabase Storage        | Bucket: `product-images` (public)            |
-| Auth       | Custom JWT via `jose`   | httpOnly cookie, admin only for now          |
+| Auth       | Custom JWT via `jose`   | httpOnly cookies, admin + customer           |
 | Password   | bcryptjs                | 12 rounds                                    |
 | Validation | Zod                     | All API inputs validated before DB touch     |
 | Forms      | React Hook Form + Zod   |                                              |
@@ -108,27 +108,45 @@ vpcomputerweb/
 │   │   │   └── admin/
 │   │   │       ├── login/          ← Public (no auth)
 │   │   │       ├── dashboard/
+│   │   │       ├── analytics/      ← Revenue charts, order stats, top products
 │   │   │       ├── products/
 │   │   │       │   ├── page.tsx    ← Product list
 │   │   │       │   ├── new/        ← Add new product
 │   │   │       │   └── [id]/       ← Edit product
+│   │   │       ├── categories/     ← Category management
 │   │   │       ├── orders/
-│   │   │       │   └── [id]/       ← Order detail + tracking
+│   │   │       │   └── [id]/       ← Order detail + tracking + payment
 │   │   │       ├── inventory/
+│   │   │       ├── coupons/        ← Coupon management
 │   │   │       └── settings/
 │   │   │
-│   │   ├── (store)/                ← Customer-facing storefront (future)
+│   │   ├── (store)/                ← Customer-facing storefront (WIP)
+│   │   │   ├── page.tsx            ← Homepage (white theme, mdcomputers.in style)
+│   │   │   ├── products/           ← Product listing + detail pages
+│   │   │   │   └── [slug]/         ← Product detail with variant selector
+│   │   │   ├── cart/               ← Shopping cart page
+│   │   │   ├── checkout/           ← Checkout flow (COD, coupon support)
+│   │   │   ├── tracking/           ← Order tracking page (VP-XXXXXX lookup)
+│   │   │   ├── account/            ← Customer dashboard (order history, details)
+│   │   │   ├── login/              ← Customer login page
+│   │   │   └── register/           ← Customer registration page
 │   │   │
 │   │   ├── api/
-│   │   │   ├── auth/admin/
-│   │   │   │   ├── login/          ← POST — admin login
-│   │   │   │   └── logout/         ← POST — admin logout
+│   │   │   ├── auth/
+│   │   │   │   ├── admin/
+│   │   │   │   │   ├── login/      ← POST — admin login
+│   │   │   │   │   └── logout/     ← POST — admin logout
+│   │   │   │   └── customer/
+│   │   │   │       ├── login/      ← POST — customer login
+│   │   │   │       └── register/   ← POST — customer registration
 │   │   │   ├── admin/              ← Protected admin APIs
 │   │   │   │   ├── products/
+│   │   │   │   ├── categories/
 │   │   │   │   ├── orders/
-│   │   │   │   └── inventory/
+│   │   │   │   ├── inventory/
+│   │   │   │   └── coupons/
 │   │   │   ├── products/           ← Public product API
-│   │   │   ├── orders/             ← Public order placement (future)
+│   │   │   ├── orders/             ← Public order placement
 │   │   │   └── tracking/           ← Public tracking lookup
 │   │   │
 │   │   ├── layout.tsx
@@ -138,10 +156,15 @@ vpcomputerweb/
 │   │   ├── admin/
 │   │   │   ├── layout/             ← Sidebar, header, nav
 │   │   │   ├── products/           ← Product form, product list, image uploader
-│   │   │   ├── orders/             ← Order table, order detail
+│   │   │   ├── orders/             ← Order table, order detail, payment mgmt
 │   │   │   ├── inventory/          ← Stock table, stock update form
+│   │   │   ├── coupons/            ← Coupon form, coupon list
 │   │   │   └── tracking/           ← Tracking timeline, add tracking event
-│   │   ├── store/                  ← Storefront components (future)
+│   │   ├── store/                  ← Storefront components
+│   │   │   ├── layout/             ← Store header, footer, nav
+│   │   │   ├── products/           ← Product card, product grid, filters
+│   │   │   ├── cart/               ← Cart items, cart summary
+│   │   │   └── checkout/           ← Checkout form, coupon input
 │   │   └── ui/                     ← Shared UI components (buttons, inputs, etc.)
 │   │
 │   ├── lib/
@@ -152,23 +175,26 @@ vpcomputerweb/
 │   │   │       ├── index.ts        ← Re-exports ALL schemas (used by drizzle.config.ts)
 │   │   │       ├── admin.ts
 │   │   │       ├── categories.ts
-│   │   │       ├── products.ts
-│   │   │       ├── inventory.ts
+│   │   │       ├── products.ts     ← products (images/specs/variants as jsonb)
+│   │   │       ├── inventory.ts    ← inventory_history only (no inventory table)
 │   │   │       ├── orders.ts
-│   │   │       └── tracking.ts
+│   │   │       ├── tracking.ts
+│   │   │       ├── customers.ts    ← customers table
+│   │   │       └── coupons.ts      ← coupons table
 │   │   ├── supabase/
 │   │   │   ├── client.ts           ← createBrowserClient (image uploads from browser)
 │   │   │   └── server.ts           ← createServerClient (server-side storage ops)
 │   │   ├── auth/
-│   │   │   └── admin.ts            ← JWT helpers, cookie helpers, bcrypt helpers
+│   │   │   ├── admin.ts            ← Admin JWT helpers, cookie helpers, bcrypt
+│   │   │   └── customer.ts         ← Customer JWT helpers, cookie helpers, bcrypt
 │   │   └── utils/
 │   │       ├── helpers.ts          ← formatPrice, slugify, cn, generateOrderNumber
 │   │       └── tracking.ts         ← generateInternalTrackingCode → "VP-XXXXXX"
 │   │
 │   ├── types/
 │   │   └── index.ts                ← Shared TypeScript types
-│   ├── hooks/                      ← Custom React hooks
-│   └── middleware.ts               ← Route protection (reads JWT cookie)
+│   ├── hooks/                      ← Custom React hooks (useCart, etc.)
+│   └── middleware.ts               ← Route protection (admin + customer cookies)
 │
 ├── drizzle/
 │   └── migrations/                 ← Auto-generated SQL — never edit manually
@@ -181,4 +207,4 @@ vpcomputerweb/
 
 ---
 
-Last updated: Project initialization — stack chosen, structure created, db commands set up.
+Last updated: 2026-03-22 — Folder structure updated to reflect storefront pages, customer auth, coupons, analytics, and new schema files.

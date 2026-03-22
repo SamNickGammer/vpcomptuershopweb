@@ -21,10 +21,14 @@ All in `src/lib/db/schema/`:
 | `index.ts`      | Re-exports everything — used by `drizzle.config.ts`   |
 | `admin.ts`      | `admins`                                               |
 | `categories.ts` | `categories`                                           |
-| `products.ts`   | `products`, `product_variants`, `product_images`, `product_specs` |
-| `inventory.ts`  | `inventory`, `inventory_history`                       |
+| `products.ts`   | `products` (images/specs/variants stored as jsonb)     |
+| `inventory.ts`  | `inventory_history`                                    |
 | `orders.ts`     | `orders`, `order_items`                                |
 | `tracking.ts`   | `tracking_events`, `shipments`                         |
+| `customers.ts`  | `customers`                                            |
+| `coupons.ts`    | `coupons`                                              |
+
+**REMOVED tables:** `product_variants`, `product_options`, `product_option_values`, `variant_option_values`, `inventory` (stock is now on products table directly).
 
 ---
 
@@ -68,109 +72,100 @@ Relations:
 
 ### `products` — products.ts
 
-| Column        | Type      | Notes                                        |
-|---------------|-----------|----------------------------------------------|
-| `id`          | uuid PK   |                                              |
-| `category_id` | uuid      | → categories, nullable                       |
-| `name`        | varchar   |                                              |
-| `slug`        | varchar   | unique — auto-generated from name            |
-| `description` | text      | nullable                                     |
-| `condition`   | enum      | `new` \| `refurbished` \| `used`             |
-| `base_price`  | integer   | **IN PAISE** — ₹1 = 100 paise               |
-| `is_featured` | boolean   | default false — shown on homepage            |
-| `is_active`   | boolean   | default true                                 |
-| `created_at`  | timestamp |                                              |
-| `updated_at`  | timestamp |                                              |
+Images, specs, and variants are stored as jsonb columns directly on the products table.
+Separate `product_variants`, `product_images`, `product_specs` tables have been **REMOVED**.
+
+| Column              | Type      | Notes                                        |
+|---------------------|-----------|----------------------------------------------|
+| `id`                | uuid PK   |                                              |
+| `category_id`       | uuid      | → categories, nullable                       |
+| `name`              | varchar   |                                              |
+| `slug`              | varchar   | unique — auto-generated from name            |
+| `description`       | text      | nullable                                     |
+| `condition`         | enum      | `new` \| `refurbished` \| `used`             |
+| `basePrice`         | integer   | **IN PAISE** — ₹1 = 100 paise               |
+| `compareAtPrice`    | integer   | nullable — strikethrough price (paise)       |
+| `images`            | jsonb     | array of image objects (url, alt, isPrimary)  |
+| `specs`             | jsonb     | array of {key, value} spec pairs             |
+| `stock`             | integer   | current stock count (replaces inventory table)|
+| `lowStockThreshold` | integer   | default 2 — alert when stock <= this         |
+| `sku`               | varchar   | nullable — product-level SKU                 |
+| `variants`          | jsonb     | array of `ProductVariantData` objects         |
+| `is_featured`       | boolean   | default false — shown on homepage            |
+| `is_active`         | boolean   | default true                                 |
+| `created_at`        | timestamp |                                              |
+| `updated_at`        | timestamp |                                              |
 
 Relations:
 - `category` → one(categories)
-- `variants` → many(product_variants)
-- `images` → many(product_images)
-- `specs` → many(product_specs)
+
+#### `ProductVariantData` type (stored in `variants` jsonb array)
+
+```typescript
+type ProductVariantData = {
+  variantId: string       // unique ID for the variant
+  name: string            // internal name e.g. "8gb-256gb"
+  displayName: string     // display name e.g. "8GB / 256GB SSD"
+  label: string           // short label for selector UI
+  description: string     // nullable — variant description
+  sku: string             // variant-level SKU
+  price: number           // variant price in paise
+  compareAtPrice: number  // nullable — strikethrough price
+  images: Array           // variant-specific images
+  specs: Array            // variant-specific specs
+  stock: number           // variant stock count
+  isDefault: boolean      // default selected variant
+  isActive: boolean       // whether variant is available
+}
+```
 
 ---
 
-### `product_variants` — products.ts
+### `customers` — customers.ts (NEW)
 
-Each variant is a sellable configuration of a product.
-Example: laptop with "8GB / 256GB SSD" vs "16GB / 512GB SSD"
-
-| Column      | Type    | Notes                                         |
-|-------------|---------|-----------------------------------------------|
-| `id`        | uuid PK |                                               |
-| `product_id`| uuid    | → products, cascade delete                    |
-| `name`      | varchar | e.g. "8GB RAM / 256GB SSD"                   |
-| `sku`       | varchar | unique — set by admin or auto-generated       |
-| `price`     | integer | nullable — overrides `base_price` if set (paise) |
-| `is_active` | boolean | default true                                  |
-| `created_at`| timestamp |                                             |
-| `updated_at`| timestamp |                                             |
-
-Relations:
-- `product` → one(products)
+| Column          | Type      | Notes                              |
+|-----------------|-----------|------------------------------------|
+| `id`            | uuid PK   | auto generated                     |
+| `name`          | varchar   |                                    |
+| `email`         | varchar   | unique                             |
+| `passwordHash`  | text      | bcrypt hashed                      |
+| `phone`         | varchar   | nullable                           |
+| `is_active`     | boolean   | default true                       |
+| `created_at`    | timestamp |                                    |
+| `updated_at`    | timestamp |                                    |
 
 ---
 
-### `product_images` — products.ts
+### `coupons` — coupons.ts (NEW)
 
-| Column      | Type    | Notes                                          |
-|-------------|---------|------------------------------------------------|
-| `id`        | uuid PK |                                                |
-| `product_id`| uuid    | → products, cascade delete                     |
-| `url`       | text    | Supabase Storage public URL                    |
-| `alt_text`  | varchar | nullable                                       |
-| `sort_order`| integer | default 0 — controls display order             |
-| `is_primary`| boolean | default false — main image shown in listings   |
-| `created_at`| timestamp |                                              |
-
-Relations:
-- `product` → one(products)
-
----
-
-### `product_specs` — products.ts
-
-Key-value spec pairs for a product.
-Example: key="RAM", value="16GB" | key="Processor", value="Intel i5 10th Gen"
-
-| Column      | Type    | Notes                        |
-|-------------|---------|------------------------------|
-| `id`        | uuid PK |                              |
-| `product_id`| uuid    | → products, cascade delete   |
-| `key`       | varchar | e.g. "RAM", "Processor"     |
-| `value`     | varchar | e.g. "16GB", "Intel i5"     |
-| `sort_order`| integer | default 0                    |
-
-Relations:
-- `product` → one(products)
-
----
-
-### `inventory` — inventory.ts
-
-One row per product variant. Tracks current stock level.
-
-| Column                | Type      | Notes                              |
-|-----------------------|-----------|------------------------------------|
-| `id`                  | uuid PK   |                                    |
-| `variant_id`          | uuid      | → product_variants, unique, cascade delete |
-| `quantity`            | integer   | current stock count                |
-| `low_stock_threshold` | integer   | default 2 — alert when stock <= this |
-| `updated_at`          | timestamp |                                    |
-
-Relations:
-- `variant` → one(product_variants)
+| Column              | Type      | Notes                                       |
+|---------------------|-----------|---------------------------------------------|
+| `id`                | uuid PK   | auto generated                              |
+| `code`              | varchar   | unique — coupon code entered by customer     |
+| `description`       | text      | nullable — admin description                 |
+| `discountType`      | varchar   | `percentage` \| `fixed`                      |
+| `discountValue`     | integer   | percentage (1-100) or fixed amount in paise  |
+| `minOrderAmount`    | integer   | nullable — minimum order total in paise      |
+| `maxDiscountAmount` | integer   | nullable — cap on discount amount in paise   |
+| `usageLimit`        | integer   | nullable — max total uses                    |
+| `usageCount`        | integer   | default 0 — how many times used so far       |
+| `validFrom`         | timestamp | nullable — coupon start date                 |
+| `validTo`           | timestamp | nullable — coupon expiry date                |
+| `is_active`         | boolean   | default true                                 |
+| `created_at`        | timestamp |                                              |
+| `updated_at`        | timestamp |                                              |
 
 ---
 
 ### `inventory_history` — inventory.ts
 
 Every stock change is logged here for a full audit trail.
+**Note:** The separate `inventory` table has been REMOVED. Stock is tracked directly on `products.stock`.
 
 | Column            | Type      | Notes                                      |
 |-------------------|-----------|--------------------------------------------|
 | `id`              | uuid PK   |                                            |
-| `variant_id`      | uuid      | → product_variants                         |
+| `productId`       | uuid      | → products (was variant_id, now product-level) |
 | `change_quantity` | integer   | positive = stock in, negative = stock out  |
 | `reason`          | enum      | `purchase` \| `sale` \| `return` \| `adjustment` \| `damage` |
 | `note`            | text      | nullable — extra context                   |
@@ -180,20 +175,27 @@ Every stock change is logged here for a full audit trail.
 
 ### `orders` — orders.ts
 
-| Column             | Type      | Notes                                        |
-|--------------------|-----------|----------------------------------------------|
-| `id`               | uuid PK   |                                              |
-| `order_number`     | varchar   | unique — e.g. `VP-ORD-20240318-001`         |
-| `customer_name`    | varchar   |                                              |
-| `customer_email`   | varchar   |                                              |
-| `customer_phone`   | varchar   | nullable                                     |
-| `shipping_address` | jsonb     | `{ line1, line2, city, state, pincode }`    |
-| `status`           | enum      | see order status flow below                  |
-| `payment_status`   | enum      | `pending` \| `paid` \| `failed` \| `refunded` |
-| `total_amount`     | integer   | **IN PAISE**                                 |
-| `notes`            | text      | nullable — internal admin notes              |
-| `created_at`       | timestamp |                                              |
-| `updated_at`       | timestamp |                                              |
+| Column              | Type      | Notes                                        |
+|----------------------|-----------|----------------------------------------------|
+| `id`                | uuid PK   |                                              |
+| `order_number`      | varchar   | unique — e.g. `VP-ORD-20240318-001`         |
+| `customer_name`     | varchar   |                                              |
+| `customer_email`    | varchar   |                                              |
+| `customer_phone`    | varchar   | nullable                                     |
+| `shipping_address`  | jsonb     | `{ line1, line2, city, state, pincode }`    |
+| `status`            | enum      | see order status flow below                  |
+| `payment_status`    | enum      | `pending` \| `paid` \| `failed` \| `refunded` |
+| `paymentMethod`     | varchar   | e.g. `cod`, `online`                         |
+| `paidAt`            | timestamp | nullable — when payment was received         |
+| `paymentReference`  | varchar   | nullable — transaction ID or reference       |
+| `trackingCode`      | varchar   | nullable — internal VP-XXXXXX code           |
+| `subtotalAmount`    | integer   | **IN PAISE** — before discount               |
+| `discountAmount`    | integer   | **IN PAISE** — discount applied              |
+| `couponCode`        | varchar   | nullable — coupon code used                  |
+| `total_amount`      | integer   | **IN PAISE** — final amount after discount   |
+| `notes`             | text      | nullable — internal admin notes              |
+| `created_at`        | timestamp |                                              |
+| `updated_at`        | timestamp |                                              |
 
 Order status enum values:
 `pending` → `confirmed` → `processing` → `ready_to_ship` → `shipped` → `delivered`
@@ -213,7 +215,8 @@ Stored separately so product changes don't affect historical orders.
 |----------------|---------|------------------------------------------------|
 | `id`           | uuid PK |                                                |
 | `order_id`     | uuid    | → orders, cascade delete                       |
-| `variant_id`   | uuid    | → product_variants, nullable (variant may be deleted later) |
+| `productId`    | uuid    | → products (reference to product)              |
+| `variantId`    | text    | nullable — variant ID string from jsonb variants array |
 | `product_name` | varchar | snapshot at order time                         |
 | `variant_name` | varchar | snapshot at order time, nullable               |
 | `quantity`     | integer |                                                |
@@ -221,7 +224,6 @@ Stored separately so product changes don't affect historical orders.
 
 Relations:
 - `order` → one(orders)
-- `variant` → one(product_variants)
 
 ---
 
@@ -275,4 +277,4 @@ Missing either side causes Drizzle Studio errors.
 
 ---
 
-Last updated: All 10 tables defined and pushed to Supabase successfully.
+Last updated: 2026-03-22 — Schema restructured: variants/images/specs moved to jsonb on products, inventory removed (stock on products), customers and coupons tables added, orders updated with payment/coupon fields.

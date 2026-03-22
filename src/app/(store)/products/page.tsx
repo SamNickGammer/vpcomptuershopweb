@@ -12,7 +12,12 @@ import {
   ChevronRight,
   Package,
   Loader2,
+  ShoppingCart,
+  Heart,
+  ArrowRight,
 } from "lucide-react";
+import { useCart } from "@/hooks/useCart";
+import { useWishlist } from "@/hooks/useWishlist";
 import { cn, formatPrice } from "@/lib/utils/helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,21 +48,20 @@ type CategoryItem = {
 
 type ProductListItem = {
   id: string;
+  productId: string;
+  variantId: string | null;
   name: string;
   slug: string;
   description: string | null;
   condition: "new" | "refurbished" | "used";
-  categoryId: string | null;
   categoryName: string | null;
+  price: number;
+  compareAtPrice: number | null;
+  image: { url: string; altText?: string } | null;
+  stock: number;
+  inStock: boolean;
+  label: string | null;
   isFeatured: boolean;
-  defaultVariant: {
-    price: number;
-    compareAtPrice: number | null;
-    image: { url: string; altText?: string } | null;
-    inStock: boolean;
-  } | null;
-  variantsCount: number;
-  priceRange: { min: number; max: number };
 };
 
 type Pagination = {
@@ -122,102 +126,143 @@ function FiltersSkeleton() {
 // ── Product Card ─────────────────────────────────────────────────────────────
 
 function ProductCard({ product }: { product: ProductListItem }) {
-  const variant = product.defaultVariant;
   const conditionCfg = CONDITION_CONFIG[product.condition];
   const hasDiscount =
-    variant?.compareAtPrice && variant.compareAtPrice > variant.price;
+    product.compareAtPrice != null && product.compareAtPrice > product.price;
   const discountPct = hasDiscount
     ? Math.round(
-        ((variant.compareAtPrice! - variant.price) / variant.compareAtPrice!) *
+        ((product.compareAtPrice! - product.price) / product.compareAtPrice!) *
           100
       )
     : 0;
+  const { addItem } = useCart();
+  const { isWishlisted, toggleWishlist } = useWishlist();
+  const wishlisted = isWishlisted(product.productId, product.variantId);
+
+  const productLink = product.variantId
+    ? `/products/${product.slug}?variant=${product.variantId}`
+    : `/products/${product.slug}`;
+
+  function handleAddToCart(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!product.inStock) return;
+    addItem({
+      variantId: product.variantId || product.id,
+      productId: product.id,
+      productName: product.name,
+      productSlug: product.slug,
+      variantName: product.label || "Default",
+      price: product.price,
+      compareAtPrice: product.compareAtPrice,
+      image: product.image?.url ?? null,
+      quantity: 1,
+    });
+  }
+
+  function handleWishlist(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleWishlist(product.productId, product.variantId);
+  }
 
   return (
     <Link
-      href={`/products/${product.slug}`}
-      className="group rounded-xl border border-border bg-card overflow-hidden transition-all duration-300 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 flex flex-col"
+      href={productLink}
+      className="group rounded-xl border border-gray-200 bg-white overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-gray-300 flex flex-col"
     >
-      {/* Image */}
-      <div className="relative aspect-square bg-muted/50 overflow-hidden">
-        {variant?.image?.url ? (
-          <ProductImage
-            src={variant.image.url}
-            alt={variant.image.altText || product.name}
-            fill
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          />
+      {/* Image with overlay */}
+      <div className="relative aspect-square bg-gray-50 overflow-hidden">
+        {product.image?.url ? (
+          <>
+            <ProductImage
+              src={product.image.url}
+              alt={product.image.altText || product.name}
+              fill
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            />
+            {/* Gradient overlay for badge visibility */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/10 pointer-events-none" />
+          </>
         ) : (
-          <div className="flex h-full items-center justify-center">
-            <Package className="h-12 w-12 text-muted-foreground/30" />
+          <div className="flex h-full items-center justify-center bg-gray-100">
+            <Package className="h-12 w-12 text-gray-300" />
           </div>
         )}
 
-        {/* Condition badge */}
-        <div className="absolute top-3 left-3">
-          <Badge variant={conditionCfg.variant} className="text-[11px]">
+        {/* Top badges */}
+        <div className="absolute top-2.5 left-2.5 right-2.5 flex items-start justify-between">
+          <span className={cn(
+            "inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide shadow-sm",
+            conditionCfg.variant === "success" ? "bg-green-500 text-white" :
+            conditionCfg.variant === "warning" ? "bg-amber-500 text-white" :
+            "bg-gray-500 text-white"
+          )}>
             {conditionCfg.label}
-          </Badge>
-        </div>
-
-        {/* Discount badge */}
-        {hasDiscount && (
-          <div className="absolute top-3 right-3">
-            <Badge variant="destructive" className="text-[11px]">
-              -{discountPct}%
-            </Badge>
-          </div>
-        )}
-      </div>
-
-      {/* Info */}
-      <div className="flex flex-col flex-1 p-4 space-y-2">
-        {product.categoryName && (
-          <span className="text-xs text-muted-foreground uppercase tracking-wider">
-            {product.categoryName}
           </span>
-        )}
-
-        <h3 className="font-semibold text-sm leading-snug line-clamp-2 text-foreground group-hover:text-primary transition-colors">
-          {product.name}
-        </h3>
-
-        <div className="flex items-baseline gap-2 mt-auto pt-1">
-          {variant ? (
-            <>
-              <span className="text-lg font-bold text-primary">
-                {formatPrice(variant.price)}
-              </span>
-              {hasDiscount && (
-                <span className="text-sm text-muted-foreground line-through">
-                  {formatPrice(variant.compareAtPrice!)}
-                </span>
-              )}
-            </>
-          ) : (
-            <span className="text-sm text-muted-foreground">
-              Price unavailable
+          {hasDiscount && (
+            <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm">
+              -{discountPct}%
             </span>
           )}
         </div>
 
-        {/* Stock */}
-        <div className="flex items-center gap-1.5">
-          <div
+        {/* Wishlist button */}
+        <button
+          onClick={handleWishlist}
+          className="absolute bottom-2.5 right-2.5 p-2 rounded-full bg-white/90 backdrop-blur-sm shadow-sm hover:bg-white transition-colors"
+        >
+          <Heart
             className={cn(
-              "h-1.5 w-1.5 rounded-full",
-              variant?.inStock ? "bg-emerald-500" : "bg-red-500"
+              "h-4 w-4 transition-colors",
+              wishlisted ? "fill-red-500 text-red-500" : "text-gray-500 hover:text-red-400"
             )}
           />
-          <span
-            className={cn(
-              "text-xs",
-              variant?.inStock ? "text-emerald-400" : "text-red-400"
-            )}
-          >
-            {variant?.inStock ? "In Stock" : "Out of Stock"}
+        </button>
+      </div>
+
+      {/* Info */}
+      <div className="flex flex-col flex-1 p-3.5">
+        {product.categoryName && (
+          <span className="text-[10px] text-gray-400 uppercase tracking-widest mb-1.5">
+            {product.categoryName}
           </span>
+        )}
+
+        <h3 className="text-[13px] font-medium leading-snug line-clamp-2 text-gray-800 group-hover:text-gray-900 transition-colors min-h-[36px] mb-2">
+          {product.name}
+        </h3>
+
+        {/* Price + Stock + Cart Icon */}
+        <div className="flex items-center justify-between mt-auto">
+          <div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-base font-bold text-gray-900">
+                {formatPrice(product.price)}
+              </span>
+              {hasDiscount && (
+                <span className="text-xs text-gray-400 line-through">
+                  {formatPrice(product.compareAtPrice!)}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1 mt-1">
+              <span className={cn("w-1.5 h-1.5 rounded-full", product.inStock ? "bg-green-500" : "bg-red-400")} />
+              <span className={cn("text-[10px] font-medium", product.inStock ? "text-green-600" : "text-red-500")}>
+                {product.inStock ? "In Stock" : "Out of Stock"}
+              </span>
+            </div>
+          </div>
+          {product.inStock && (
+            <button
+              onClick={handleAddToCart}
+              className="p-2.5 rounded-lg bg-gray-900 hover:bg-gray-800 text-white transition-colors"
+              title="Add to Cart"
+            >
+              <ShoppingCart className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
     </Link>
@@ -565,14 +610,6 @@ function ProductsContent() {
         if (data.success) {
           let prods: ProductListItem[] = data.data.products;
 
-          // Client-side multi-category filter
-          if (categoryParam && categoryParam.includes(",")) {
-            const catSet = new Set(categoryParam.split(","));
-            prods = prods.filter(
-              (p) => p.categoryId && catSet.has(p.categoryId)
-            );
-          }
-
           // Client-side multi-condition filter
           if (conditionParam && conditionParam.includes(",")) {
             const condSet = new Set(conditionParam.split(","));
@@ -583,14 +620,10 @@ function ProductsContent() {
           const minP = minPrice ? parseInt(minPrice, 10) * 100 : null;
           const maxP = maxPrice ? parseInt(maxPrice, 10) * 100 : null;
           if (minP !== null) {
-            prods = prods.filter(
-              (p) => (p.defaultVariant?.price ?? 0) >= minP
-            );
+            prods = prods.filter((p) => p.price >= minP);
           }
           if (maxP !== null) {
-            prods = prods.filter(
-              (p) => (p.defaultVariant?.price ?? 0) <= maxP
-            );
+            prods = prods.filter((p) => p.price <= maxP);
           }
 
           setProducts(prods);

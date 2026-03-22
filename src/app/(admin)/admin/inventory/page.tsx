@@ -8,9 +8,11 @@ import {
   PackageX,
   Boxes,
   TrendingDown,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
-import { cn, formatPrice } from "@/lib/utils/helpers";
+import { cn } from "@/lib/utils/helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,21 +47,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-/* ---------- Types (matches new API shape) ---------- */
+/* ---------- Types (matches new simplified schema) ---------- */
 
-interface InventoryItem {
-  id: string;
+interface ProductVariant {
   variantId: string;
   name: string;
-  sku: string | null;
+  sku: string;
   price: number;
   stock: number;
+  isActive?: boolean;
+}
+
+interface InventoryProduct {
+  id: string;
+  name: string;
+  sku: string | null;
+  stock: number;
   lowStockThreshold: number;
-  isDefault: boolean;
-  product: {
-    id: string;
-    name: string;
-  };
+  variants: ProductVariant[];
 }
 
 /* ---------- Constants ---------- */
@@ -115,7 +120,6 @@ function TableSkeleton() {
           <div className="h-4 w-20 bg-secondary rounded animate-pulse" />
           <div className="h-4 w-16 bg-secondary rounded animate-pulse" />
           <div className="h-4 w-12 bg-secondary rounded animate-pulse" />
-          <div className="h-4 w-10 bg-secondary rounded animate-pulse" />
           <div className="h-6 w-16 bg-secondary rounded-full animate-pulse" />
           <div className="h-8 w-16 bg-secondary rounded animate-pulse" />
         </div>
@@ -127,13 +131,22 @@ function TableSkeleton() {
 /* ---------- Page ---------- */
 
 export default function InventoryPage() {
-  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [products, setProducts] = useState<InventoryProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [lowStockOnly, setLowStockOnly] = useState(false);
 
+  // Expanded products (to show variant rows)
+  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(
+    new Set()
+  );
+
   // Update dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [selectedProduct, setSelectedProduct] =
+    useState<InventoryProduct | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
+    null
+  );
   const [changeQty, setChangeQty] = useState("");
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
@@ -148,7 +161,7 @@ export default function InventoryPage() {
       const res = await fetch(`/api/admin/inventory?${params.toString()}`);
       const json = await res.json();
       if (json.success) {
-        setItems(json.data);
+        setProducts(json.data);
       } else {
         toast.error(json.error || "Failed to fetch inventory");
       }
@@ -163,8 +176,21 @@ export default function InventoryPage() {
     fetchInventory();
   }, [fetchInventory]);
 
-  const openUpdateDialog = (item: InventoryItem) => {
-    setSelectedItem(item);
+  const toggleExpanded = (productId: string) => {
+    setExpandedProducts((prev) => {
+      const next = new Set(prev);
+      if (next.has(productId)) next.delete(productId);
+      else next.add(productId);
+      return next;
+    });
+  };
+
+  const openUpdateDialog = (
+    product: InventoryProduct,
+    variantId: string | null = null
+  ) => {
+    setSelectedProduct(product);
+    setSelectedVariantId(variantId);
     setChangeQty("");
     setReason("");
     setNote("");
@@ -172,7 +198,7 @@ export default function InventoryPage() {
   };
 
   const handleUpdate = async () => {
-    if (!selectedItem) return;
+    if (!selectedProduct) return;
     const qty = parseInt(changeQty, 10);
     if (isNaN(qty) || qty === 0) {
       toast.error("Please enter a valid non-zero quantity");
@@ -189,7 +215,8 @@ export default function InventoryPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          variantId: selectedItem.variantId,
+          productId: selectedProduct.id,
+          variantId: selectedVariantId || undefined,
           changeQuantity: qty,
           reason,
           note: note || undefined,
@@ -210,16 +237,57 @@ export default function InventoryPage() {
     }
   };
 
+  // Get the label for the update dialog
+  const getDialogLabel = () => {
+    if (!selectedProduct) return "";
+    if (selectedVariantId) {
+      const variant = selectedProduct.variants.find(
+        (v) => v.variantId === selectedVariantId
+      );
+      return variant
+        ? `${selectedProduct.name} - ${variant.name}`
+        : selectedProduct.name;
+    }
+    return selectedProduct.name;
+  };
+
+  const getCurrentStock = () => {
+    if (!selectedProduct) return 0;
+    if (selectedVariantId) {
+      const variant = selectedProduct.variants.find(
+        (v) => v.variantId === selectedVariantId
+      );
+      return variant?.stock ?? 0;
+    }
+    return selectedProduct.stock;
+  };
+
   // Computed stats
-  const totalItems = items.length;
-  const lowStockCount = items.filter(
-    (i) => i.stock > 0 && i.stock <= i.lowStockThreshold
+  const allStockItems: Array<{ stock: number; threshold: number }> = [];
+  for (const p of products) {
+    if (p.variants.length > 0) {
+      for (const v of p.variants) {
+        allStockItems.push({
+          stock: v.stock,
+          threshold: p.lowStockThreshold,
+        });
+      }
+    } else {
+      allStockItems.push({
+        stock: p.stock,
+        threshold: p.lowStockThreshold,
+      });
+    }
+  }
+  const totalItems = products.length;
+  const lowStockCount = allStockItems.filter(
+    (i) => i.stock > 0 && i.stock <= i.threshold
   ).length;
-  const outOfStockCount = items.filter((i) => i.stock <= 0).length;
+  const outOfStockCount = allStockItems.filter((i) => i.stock <= 0).length;
 
   return (
     <div className="space-y-6">
-      {/* Top bar: toggle + count */}
+      {/* Top bar */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           {loading ? (
@@ -227,7 +295,7 @@ export default function InventoryPage() {
           ) : (
             <>
               <span className="font-medium text-foreground">{totalItems}</span>{" "}
-              item{totalItems !== 1 ? "s" : ""}
+              product{totalItems !== 1 ? "s" : ""}
             </>
           )}
         </p>
@@ -253,7 +321,7 @@ export default function InventoryPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Items</p>
+                <p className="text-sm text-muted-foreground">Total Products</p>
                 <p className="text-3xl font-bold text-foreground mt-1">
                   {loading ? (
                     <span className="inline-block h-8 w-12 bg-secondary rounded animate-pulse" />
@@ -315,7 +383,7 @@ export default function InventoryPage() {
         <CardContent className="p-0">
           {loading ? (
             <TableSkeleton />
-          ) : items.length === 0 ? (
+          ) : products.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <div className="rounded-full bg-secondary p-4 mb-4">
                 <Package className="h-10 w-10 text-muted-foreground/50" />
@@ -326,20 +394,18 @@ export default function InventoryPage() {
               <p className="text-muted-foreground text-sm mt-1 max-w-sm">
                 {lowStockOnly
                   ? "No low stock items found. All items are well stocked."
-                  : "Inventory will appear here when products with variants are added."}
+                  : "Inventory will appear here when products are added."}
               </p>
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow className="border-border hover:bg-transparent">
+                  <TableHead className="w-[40px] text-muted-foreground" />
                   <TableHead className="text-muted-foreground">
                     Product
                   </TableHead>
                   <TableHead className="text-muted-foreground">SKU</TableHead>
-                  <TableHead className="text-muted-foreground">
-                    Price
-                  </TableHead>
                   <TableHead className="text-center text-muted-foreground">
                     Stock
                   </TableHead>
@@ -355,84 +421,162 @@ export default function InventoryPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {items.map((item) => {
+                {products.map((product) => {
+                  const hasVariants = product.variants.length > 0;
+                  const isExpanded = expandedProducts.has(product.id);
+                  const totalStock = hasVariants
+                    ? product.variants.reduce((sum, v) => sum + v.stock, 0)
+                    : product.stock;
                   const status = getStockStatus(
-                    item.stock,
-                    item.lowStockThreshold
+                    totalStock,
+                    product.lowStockThreshold
                   );
+
                   return (
-                    <TableRow
-                      key={item.variantId}
-                      className="border-border hover:bg-secondary/50 transition-colors"
-                    >
-                      {/* Product column */}
-                      <TableCell>
-                        <div>
-                          <p className="font-medium text-foreground">
-                            {item.product.name}
-                          </p>
-                          {!item.isDefault && item.name && (
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {item.name}
+                    <React.Fragment key={product.id}>
+                      {/* Product row */}
+                      <TableRow className="border-border hover:bg-secondary/50 transition-colors">
+                        <TableCell className="w-[40px]">
+                          {hasVariants ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                              onClick={() => toggleExpanded(product.id)}
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
+                            </Button>
+                          ) : null}
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium text-foreground">
+                              {product.name}
                             </p>
+                            {hasVariants && (
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {product.variants.length} variant
+                                {product.variants.length !== 1 ? "s" : ""}
+                              </p>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {product.sku ? (
+                            <span className="font-mono text-sm text-muted-foreground">
+                              {product.sku}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-muted-foreground/50">
+                              --
+                            </span>
                           )}
-                        </div>
-                      </TableCell>
-
-                      {/* SKU column */}
-                      <TableCell>
-                        {item.sku ? (
-                          <span className="font-mono text-sm text-muted-foreground">
-                            {item.sku}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span
+                            className={cn(
+                              "text-lg font-bold font-mono",
+                              getStockColor(
+                                totalStock,
+                                product.lowStockThreshold
+                              )
+                            )}
+                          >
+                            {totalStock}
                           </span>
-                        ) : (
-                          <span className="text-sm text-muted-foreground/50">
-                            —
-                          </span>
-                        )}
-                      </TableCell>
-
-                      {/* Price column */}
-                      <TableCell>
-                        <span className="text-sm text-foreground">
-                          {formatPrice(item.price)}
-                        </span>
-                      </TableCell>
-
-                      {/* Stock column */}
-                      <TableCell className="text-center">
-                        <span
-                          className={cn(
-                            "text-lg font-bold font-mono",
-                            getStockColor(item.stock, item.lowStockThreshold)
+                        </TableCell>
+                        <TableCell className="text-center text-muted-foreground">
+                          {product.lowStockThreshold}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={status.variant}>
+                            {status.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {!hasVariants && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openUpdateDialog(product)}
+                              className="border-border"
+                            >
+                              Update
+                            </Button>
                           )}
-                        >
-                          {item.stock}
-                        </span>
-                      </TableCell>
+                        </TableCell>
+                      </TableRow>
 
-                      {/* Threshold column */}
-                      <TableCell className="text-center text-muted-foreground">
-                        {item.lowStockThreshold}
-                      </TableCell>
-
-                      {/* Status column */}
-                      <TableCell>
-                        <Badge variant={status.variant}>{status.label}</Badge>
-                      </TableCell>
-
-                      {/* Actions column */}
-                      <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openUpdateDialog(item)}
-                          className="border-border"
-                        >
-                          Update
-                        </Button>
-                      </TableCell>
-                    </TableRow>
+                      {/* Variant rows (expanded) */}
+                      {hasVariants &&
+                        isExpanded &&
+                        product.variants.map((variant) => {
+                          const variantStatus = getStockStatus(
+                            variant.stock,
+                            product.lowStockThreshold
+                          );
+                          return (
+                            <TableRow
+                              key={variant.variantId}
+                              className="border-border hover:bg-secondary/30 transition-colors bg-secondary/10"
+                            >
+                              <TableCell />
+                              <TableCell>
+                                <div className="pl-4 border-l-2 border-border">
+                                  <p className="text-sm text-foreground">
+                                    {variant.name}
+                                  </p>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <span className="font-mono text-sm text-muted-foreground">
+                                  {variant.sku}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <span
+                                  className={cn(
+                                    "text-lg font-bold font-mono",
+                                    getStockColor(
+                                      variant.stock,
+                                      product.lowStockThreshold
+                                    )
+                                  )}
+                                >
+                                  {variant.stock}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-center text-muted-foreground">
+                                {product.lowStockThreshold}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={variantStatus.variant}>
+                                  {variantStatus.label}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    openUpdateDialog(
+                                      product,
+                                      variant.variantId
+                                    )
+                                  }
+                                  className="border-border"
+                                >
+                                  Update
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                    </React.Fragment>
                   );
                 })}
               </TableBody>
@@ -446,14 +590,10 @@ export default function InventoryPage() {
         <DialogContent className="sm:max-w-md bg-card border-border">
           <DialogHeader>
             <DialogTitle className="text-foreground">Update Stock</DialogTitle>
-            <DialogDescription>
-              {selectedItem
-                ? `${selectedItem.product.name}${!selectedItem.isDefault && selectedItem.name ? ` — ${selectedItem.name}` : ""}`
-                : ""}
-            </DialogDescription>
+            <DialogDescription>{getDialogLabel()}</DialogDescription>
           </DialogHeader>
 
-          {selectedItem && (
+          {selectedProduct && (
             <div className="space-y-5 py-2">
               {/* Current stock display */}
               <div className="rounded-xl bg-secondary border border-border p-4 text-center">
@@ -464,12 +604,12 @@ export default function InventoryPage() {
                   className={cn(
                     "text-4xl font-bold font-mono",
                     getStockColor(
-                      selectedItem.stock,
-                      selectedItem.lowStockThreshold
+                      getCurrentStock(),
+                      selectedProduct.lowStockThreshold
                     )
                   )}
                 >
-                  {selectedItem.stock}
+                  {getCurrentStock()}
                 </p>
               </div>
 

@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq, sql, count, sum, gte, and } from "drizzle-orm";
+import { eq, sql, count, gte, and } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   orders,
   orderItems,
   products,
-  productVariants,
   categories,
   coupons,
 } from "@/lib/db/schema";
@@ -145,11 +144,10 @@ export async function GET(request: NextRequest) {
       .select({
         categoryName: categories.name,
         productCount: sql<number>`count(distinct ${products.id})`,
-        totalStock: sql<number>`coalesce(sum(${productVariants.stock}), 0)`,
+        totalStock: sql<number>`coalesce(sum(${products.stock}), 0)`,
       })
       .from(categories)
       .leftJoin(products, eq(products.categoryId, categories.id))
-      .leftJoin(productVariants, eq(productVariants.productId, products.id))
       .groupBy(categories.id, categories.name)
       .orderBy(sql`count(distinct ${products.id}) desc`);
 
@@ -160,26 +158,26 @@ export async function GET(request: NextRequest) {
     }));
 
     // ── Inventory summary ──────────────────────────────────────────────────
-    const [{ total: totalVariants }] = await db
+    const [{ total: totalProducts }] = await db
       .select({ total: count() })
-      .from(productVariants);
+      .from(products);
 
     const [{ total: outOfStock }] = await db
       .select({ total: count() })
-      .from(productVariants)
-      .where(sql`${productVariants.stock} = 0`);
+      .from(products)
+      .where(sql`${products.stock} = 0`);
 
     const [{ total: lowStock }] = await db
       .select({ total: count() })
-      .from(productVariants)
+      .from(products)
       .where(
-        sql`${productVariants.stock} > 0 AND ${productVariants.stock} <= ${productVariants.lowStockThreshold}`
+        sql`${products.stock} > 0 AND ${products.stock} <= ${products.lowStockThreshold}`
       );
 
-    const inStock = Number(totalVariants) - Number(outOfStock) - Number(lowStock);
+    const inStock = Number(totalProducts) - Number(outOfStock) - Number(lowStock);
 
     const inventorySummary = {
-      totalVariants: Number(totalVariants),
+      totalProducts: Number(totalProducts),
       inStock,
       lowStock: Number(lowStock),
       outOfStock: Number(outOfStock),

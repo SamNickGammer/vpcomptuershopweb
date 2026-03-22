@@ -3,10 +3,6 @@ import {
   admins,
   categories,
   products,
-  productOptions,
-  productOptionValues,
-  productVariants,
-  variantOptionValues,
   inventoryHistory,
   orders,
   orderItems,
@@ -105,10 +101,6 @@ async function seed() {
     await db.delete(orderItems);
     await db.delete(orders);
     await db.delete(inventoryHistory);
-    await db.delete(variantOptionValues);
-    await db.delete(productVariants);
-    await db.delete(productOptionValues);
-    await db.delete(productOptions);
     await db.delete(products);
     await db.delete(categories);
     console.log("   Existing data cleared.\n");
@@ -1088,15 +1080,41 @@ async function seed() {
     },
   ];
 
-  // ── Insert products, options, variants, and variant_option_values ──────
+  // ── Insert products with variants as JSONB ──────
 
   let skuCounter = 1;
-  const allVariantIds: string[] = [];
-  const allVariantPrices: number[] = [];
-  const allVariantProductNames: string[] = [];
+  const allProductIds: string[] = [];
+  const allProductPrices: number[] = [];
+  const allProductNames: string[] = [];
   const allVariantNames: string[] = [];
+  let totalVariantCount = 0;
 
   for (const p of allProductData) {
+    // Build variants JSONB array
+    const variantsJson = p.variants.map((v, vi) => {
+      const catPrefix = p.categoryKey.substring(0, 3).toUpperCase();
+      const sku = generateSku(catPrefix, skuCounter++);
+      return {
+        variantId: crypto.randomUUID(),
+        name: v.name,
+        displayName: `${p.name} ${v.name}`.trim(),
+        label: "",
+        description: "",
+        sku,
+        price: paise(v.price),
+        compareAtPrice: v.compareAtPrice ? paise(v.compareAtPrice) : null,
+        images: v.images,
+        specs: v.specs,
+        stock: v.stock,
+        isDefault: v.isDefault ?? vi === 0,
+        isActive: true,
+      };
+    });
+
+    // Use default variant (or first) for product-level fields
+    const defaultVariant = variantsJson.find((v) => v.isDefault) ?? variantsJson[0];
+    const totalStock = variantsJson.reduce((sum, v) => sum + v.stock, 0);
+
     const [product] = await db
       .insert(products)
       .values({
@@ -1105,104 +1123,44 @@ async function seed() {
         slug: slugify(p.name),
         description: p.description,
         condition: p.condition,
+        sku: defaultVariant.sku,
+        basePrice: defaultVariant.price,
+        compareAtPrice: defaultVariant.compareAtPrice,
+        images: defaultVariant.images,
+        specs: defaultVariant.specs,
+        stock: totalStock,
+        lowStockThreshold: 2,
+        variants: variantsJson,
         isFeatured: p.isFeatured ?? false,
         isActive: true,
       })
       .returning();
 
-    // ── Insert product options and collect value ID mappings ──
-    // Map: "Color" -> "Silver" -> uuid
-    const optionValueIdMap: Record<string, Record<string, string>> = {};
-
-    if (p.options && p.options.length > 0) {
-      for (let oi = 0; oi < p.options.length; oi++) {
-        const optDef = p.options[oi];
-        const [insertedOption] = await db
-          .insert(productOptions)
-          .values({
-            productId: product.id,
-            name: optDef.name,
-            position: oi,
-          })
-          .returning();
-
-        optionValueIdMap[optDef.name] = {};
-
-        const optionValueRows = await db
-          .insert(productOptionValues)
-          .values(
-            optDef.values.map((val, vi) => ({
-              optionId: insertedOption.id,
-              value: val,
-              position: vi,
-            }))
-          )
-          .returning();
-
-        for (const ovRow of optionValueRows) {
-          optionValueIdMap[optDef.name][ovRow.value] = ovRow.id;
-        }
-      }
-    }
-
-    // ── Insert variants ──
-    for (const v of p.variants) {
-      const catPrefix = p.categoryKey.substring(0, 3).toUpperCase();
-      const sku = generateSku(catPrefix, skuCounter++);
-
-      const [insertedVariant] = await db
-        .insert(productVariants)
-        .values({
-          productId: product.id,
-          name: v.name,
-          sku,
-          price: paise(v.price),
-          compareAtPrice: v.compareAtPrice ? paise(v.compareAtPrice) : null,
-          images: v.images,
-          specs: v.specs,
-          stock: v.stock,
-          lowStockThreshold: v.lowStockThreshold ?? 2,
-          isDefault: v.isDefault ?? false,
-          isActive: true,
-        })
-        .returning();
-
-      allVariantIds.push(insertedVariant.id);
-      allVariantPrices.push(paise(v.price));
-      allVariantProductNames.push(p.name);
+    // Track for order seeding
+    for (const v of variantsJson) {
+      allProductIds.push(product.id);
+      allProductPrices.push(v.price);
+      allProductNames.push(p.name);
       allVariantNames.push(v.name);
-
-      // ── Link variant to option values ──
-      if (v.optionValues && Object.keys(v.optionValues).length > 0) {
-        const vovValues: { variantId: string; optionValueId: string }[] = [];
-        for (const [optName, optVal] of Object.entries(v.optionValues)) {
-          const ovId = optionValueIdMap[optName]?.[optVal];
-          if (ovId) {
-            vovValues.push({ variantId: insertedVariant.id, optionValueId: ovId });
-          }
-        }
-        if (vovValues.length > 0) {
-          await db.insert(variantOptionValues).values(vovValues);
-        }
-      }
+      totalVariantCount++;
     }
   }
 
-  console.log(`     Created ${allProductData.length} products with ${allVariantIds.length} variants.`);
+  console.log(`     Created ${allProductData.length} products with ${totalVariantCount} variants (JSONB).`);
 
   // ── 4. Inventory History ──────────────────────────────────────────────
 
   console.log("4/8  Creating inventory history records...");
 
   let historyCount = 0;
-  for (let i = 0; i < allVariantIds.length; i++) {
+  for (let i = 0; i < allProductIds.length; i++) {
     const stock = allProductData
       .flatMap((p) => p.variants)
       [i]?.stock;
 
     if (stock && stock > 0) {
       await db.insert(inventoryHistory).values({
-        variantId: allVariantIds[i],
+        productId: allProductIds[i],
         changeQuantity: stock,
         reason: "purchase",
         note: "Initial stock from supplier",
@@ -1297,13 +1255,13 @@ async function seed() {
 
     const itemCount = rand(1, 4);
     const chosenIndices = pickN(
-      Array.from({ length: allVariantIds.length }, (_, idx) => idx),
+      Array.from({ length: allProductIds.length }, (_, idx) => idx),
       itemCount
     );
 
     let totalAmount = 0;
     const items: {
-      variantId: string;
+      productId: string;
       productName: string;
       variantName: string;
       quantity: number;
@@ -1312,11 +1270,11 @@ async function seed() {
 
     for (const idx of chosenIndices) {
       const qty = rand(1, 2);
-      const unitPrice = allVariantPrices[idx];
+      const unitPrice = allProductPrices[idx];
       totalAmount += unitPrice * qty;
       items.push({
-        variantId: allVariantIds[idx],
-        productName: allVariantProductNames[idx],
+        productId: allProductIds[idx],
+        productName: allProductNames[idx],
         variantName: allVariantNames[idx],
         quantity: qty,
         unitPrice,
@@ -1356,7 +1314,7 @@ async function seed() {
     await db.insert(orderItems).values(
       items.map((item) => ({
         orderId: order.id,
-        variantId: item.variantId,
+        productId: item.productId,
         productName: item.productName,
         variantName: item.variantName,
         quantity: item.quantity,
@@ -1508,7 +1466,7 @@ async function seed() {
   // ── Done ───────────────────────────────────────────────────────────────
 
   console.log("\n=== Seed completed successfully! ===");
-  console.log(`Summary: ${allProductData.length} products, ${allVariantIds.length} variants, 30 orders, ${trackingCount} tracking events, ${shipmentCount} shipments`);
+  console.log(`Summary: ${allProductData.length} products, ${totalVariantCount} variants, 30 orders, ${trackingCount} tracking events, ${shipmentCount} shipments`);
   console.log("Admin login: admin@vpcomputer.in / Admin@1234");
   console.log("Change the password after first login.");
 

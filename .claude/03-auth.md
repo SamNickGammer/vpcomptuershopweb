@@ -6,7 +6,7 @@
 
 There are two types of users in this system:
 1. **Admin** — shop owner / staff. Custom JWT auth. DONE.
-2. **Customer** — buyers. Supabase Auth. NOT YET BUILT.
+2. **Customer** — buyers. Custom JWT auth (not Supabase Auth). DONE.
 
 ---
 
@@ -116,16 +116,56 @@ Seed script checks if any admin exists first — safe to run multiple times.
 
 ---
 
-## Customer Auth (NOT YET BUILT)
+## Customer Auth (DONE)
 
-Will be added when building the customer storefront.
-Plan: use Supabase Auth (email/password + OTP options).
-Customer auth will be completely separate from admin auth.
+### How It Works
 
-When building:
-- Create `src/lib/auth/user.ts`
-- Update this file with implementation details
-- Update `06-features.md` status
+1. Customer visits `/login` or `/register`
+2. Register: submits name, email, password → `POST /api/auth/customer/register`
+3. Login: submits email + password → `POST /api/auth/customer/login`
+4. If valid → signs a JWT → sets it as an httpOnly cookie (`vp_customer_token`)
+5. Protected customer pages (account, checkout) check cookie for auth
+
+### Files
+
+| File                                              | What It Does                              |
+|---------------------------------------------------|-------------------------------------------|
+| `src/lib/auth/customer.ts`                        | JWT sign/verify, cookie helpers, bcrypt   |
+| `src/app/api/auth/customer/login/route.ts`        | Login API route                           |
+| `src/app/api/auth/customer/register/route.ts`     | Register API route                        |
+
+### Cookie
+
+```
+Name:     vp_customer_token
+httpOnly: true  (JS cannot read it — XSS safe)
+secure:   true in production, false in dev
+sameSite: lax
+maxAge:   30 days
+path:     /
+```
+
+### JWT Payload
+
+```typescript
+type CustomerJWTPayload = {
+  customerId: string   // customer UUID from DB
+  email:      string
+  name:       string
+}
+```
+
+### JWT Secret
+
+Uses env var: `CUSTOMER_JWT_SECRET` (or shared with admin secret — check implementation).
+Algorithm: HS256
+
+### Notes
+
+- Customer auth is completely separate from admin auth
+- Different cookie names (`vp_customer_token` vs `vp_admin_token`)
+- Different JWT payloads and verification functions
+- Customer passwords are bcrypt hashed (same as admin)
 
 ---
 
@@ -139,4 +179,4 @@ When building:
 
 ---
 
-Last updated: Admin auth fully implemented — login, logout, middleware, seed script done.
+Last updated: 2026-03-22 — Customer auth added (register, login, JWT cookie). Both admin and customer auth fully implemented.

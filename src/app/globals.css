@@ -82,6 +82,27 @@
   --sidebar-border: #1e2235;
 }
 
+/* ── Store (light) theme — scoped to .store-theme ─────────────────────────── */
+.store-theme {
+  --background: #ffffff;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1a;
+  --primary: #EF9822;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #1a1a1a;
+  --muted: #f5f5f5;
+  --muted-foreground: #6b7280;
+  --accent: #FFF3E0;
+  --accent-foreground: #EF9822;
+  --border: #e5e7eb;
+  --input: #e5e7eb;
+  --ring: #EF9822;
+}
+
 @layer base {
   * {
     @apply border-border;

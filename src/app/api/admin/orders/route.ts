@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     if (!admin) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -19,13 +19,18 @@ export async function GET(request: NextRequest) {
     const paymentStatus = searchParams.get("paymentStatus");
     const search = searchParams.get("search");
     const page = Math.max(1, Number(searchParams.get("page")) || 1);
-    const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit")) || 20));
+    const limit = Math.min(
+      100,
+      Math.max(1, Number(searchParams.get("limit")) || 20),
+    );
     const offset = (page - 1) * limit;
 
     // Build where conditions
     const conditions = [];
     if (status) {
-      const statuses = status.split(",").map((s) => s.trim()) as (typeof orders.status.enumValues[number])[];
+      const statuses = status
+        .split(",")
+        .map((s) => s.trim()) as (typeof orders.status.enumValues)[number][];
       if (statuses.length === 1) {
         conditions.push(eq(orders.status, statuses[0]));
       } else {
@@ -33,15 +38,20 @@ export async function GET(request: NextRequest) {
       }
     }
     if (paymentStatus) {
-      conditions.push(eq(orders.paymentStatus, paymentStatus as typeof orders.paymentStatus.enumValues[number]));
+      conditions.push(
+        eq(
+          orders.paymentStatus,
+          paymentStatus as (typeof orders.paymentStatus.enumValues)[number],
+        ),
+      );
     }
     if (search) {
       conditions.push(
         or(
           like(orders.orderNumber, `%${search}%`),
           like(orders.customerName, `%${search}%`),
-          like(orders.customerEmail, `%${search}%`)
-        )
+          like(orders.customerEmail, `%${search}%`),
+        ),
       );
     }
 
@@ -92,9 +102,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to fetch orders",
+        error:
+          error instanceof Error ? error.message : "Failed to fetch orders",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

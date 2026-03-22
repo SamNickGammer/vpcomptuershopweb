@@ -50,7 +50,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         const data = await res.json();
         if (data.success && data.data) {
-          setUser(data.data);
+          const c = data.data.customer || data.data;
+          setUser({
+            customerId: c.customerId || c.id,
+            name: c.name || "",
+            email: c.email || "",
+          });
         }
       } catch {
         // Not logged in

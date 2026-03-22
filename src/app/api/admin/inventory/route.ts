@@ -2,15 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import {
-  inventoryHistory,
-  productVariants,
-  products,
-} from "@/lib/db/schema";
+import { inventoryHistory, products } from "@/lib/db/schema";
 import { getAdminFromCookie } from "@/lib/auth/admin";
 
 const updateStockSchema = z.object({
-  variantId: z.string().min(1),
+  productId: z.string().min(1),
+  variantId: z.string().optional().nullable(), // optional: which variant's stock changed
   changeQuantity: z.number().int(),
   reason: z.enum(["purchase", "sale", "return", "adjustment", "damage"]),
   note: z.string().optional().nullable(),
@@ -30,38 +27,29 @@ export async function GET(request: NextRequest) {
     const lowStock = searchParams.get("lowStock") === "true";
 
     const whereClause = lowStock
-      ? sql`${productVariants.stock} <= ${productVariants.lowStockThreshold}`
+      ? sql`${products.stock} <= ${products.lowStockThreshold}`
       : undefined;
 
     const rows = await db
-      .select({
-        variant: productVariants,
-        productId: products.id,
-        productName: products.name,
-      })
-      .from(productVariants)
-      .innerJoin(products, eq(productVariants.productId, products.id))
+      .select()
+      .from(products)
       .where(whereClause);
 
-    const data = rows.map((row) => ({
-      id: row.variant.id,
-      name: row.variant.name,
-      sku: row.variant.sku,
-      price: row.variant.price,
-      stock: row.variant.stock,
-      lowStockThreshold: row.variant.lowStockThreshold,
-      isDefault: row.variant.isDefault,
-      isActive: row.variant.isActive,
+    const data = rows.map((p) => ({
+      id: p.id,
+      name: p.name,
+      sku: p.sku,
+      basePrice: p.basePrice,
+      stock: p.stock,
+      lowStockThreshold: p.lowStockThreshold,
+      isActive: p.isActive,
       status:
-        row.variant.stock <= 0
+        p.stock <= 0
           ? "out_of_stock"
-          : row.variant.stock <= row.variant.lowStockThreshold
+          : p.stock <= p.lowStockThreshold
             ? "low_stock"
             : "in_stock",
-      product: {
-        id: row.productId,
-        name: row.productName,
-      },
+      variantsCount: ((p.variants ?? []) as unknown[]).length,
     }));
 
     return NextResponse.json({ success: true, data });
@@ -99,14 +87,14 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { variantId, changeQuantity, reason, note } = parsed.data;
+    const { productId, variantId, changeQuantity, reason, note } = parsed.data;
 
     const result = await db.transaction(async (tx) => {
-      // Find variant
+      // Find product
       const [existing] = await tx
         .select()
-        .from(productVariants)
-        .where(eq(productVariants.id, variantId))
+        .from(products)
+        .where(eq(products.id, productId))
         .limit(1);
 
       if (!existing) {
@@ -115,19 +103,20 @@ export async function PUT(request: NextRequest) {
 
       const newStock = existing.stock + changeQuantity;
 
-      // Update stock on variant
+      // Update stock on product
       const [updated] = await tx
-        .update(productVariants)
+        .update(products)
         .set({
           stock: newStock,
           updatedAt: new Date(),
         })
-        .where(eq(productVariants.id, variantId))
+        .where(eq(products.id, productId))
         .returning();
 
       // Insert history record
       await tx.insert(inventoryHistory).values({
-        variantId,
+        productId,
+        variantId: variantId ?? null,
         changeQuantity,
         reason,
         note: note ?? null,
@@ -138,7 +127,7 @@ export async function PUT(request: NextRequest) {
 
     if (!result) {
       return NextResponse.json(
-        { success: false, error: "Variant not found" },
+        { success: false, error: "Product not found" },
         { status: 404 }
       );
     }

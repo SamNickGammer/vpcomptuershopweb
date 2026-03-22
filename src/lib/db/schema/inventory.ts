@@ -7,7 +7,7 @@ import {
   pgEnum,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { productVariants } from "./products";
+import { products } from "./products";
 
 export const inventoryReasonEnum = pgEnum("inventory_reason", [
   "purchase",
@@ -18,12 +18,13 @@ export const inventoryReasonEnum = pgEnum("inventory_reason", [
 ]);
 
 // ── Inventory History ─────────────────────────────────────────────────────────
-// Audit trail for every stock change. Current stock is on product_variants.stock
+// Audit trail for stock changes. Current stock is on products.stock.
 export const inventoryHistory = pgTable("inventory_history", {
   id: uuid("id").primaryKey().defaultRandom(),
-  variantId: uuid("variant_id")
+  productId: uuid("product_id")
     .notNull()
-    .references(() => productVariants.id, { onDelete: "cascade" }),
+    .references(() => products.id, { onDelete: "cascade" }),
+  variantId: text("variant_id"), // optional - which variant's stock changed
   changeQuantity: integer("change_quantity").notNull(),
   reason: inventoryReasonEnum("reason").notNull(),
   note: text("note"),
@@ -35,9 +36,9 @@ export const inventoryHistory = pgTable("inventory_history", {
 export const inventoryHistoryRelations = relations(
   inventoryHistory,
   ({ one }) => ({
-    variant: one(productVariants, {
-      fields: [inventoryHistory.variantId],
-      references: [productVariants.id],
+    product: one(products, {
+      fields: [inventoryHistory.productId],
+      references: [products.id],
     }),
   })
 );

@@ -1,11 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import {
-  products,
-  productVariants,
-  categories,
-} from "@/lib/db/schema";
-import { eq, and, ilike, sql, asc, desc } from "drizzle-orm";
+import { products, categories } from "@/lib/db/schema";
+import { eq, and, or, ilike, sql, desc, inArray } from "drizzle-orm";
+import type { ProductVariantData } from "@/lib/db/schema/products";
+
+// A single storefront listing — one per variant (or one per product if no variants)
+type ProductListing = {
+  id: string; // unique listing id: `${productId}` or `${productId}__${variantId}`
+  productId: string;
+  variantId: string | null;
+  name: string; // displayName for variants, product.name for base
+  slug: string;
+  description: string | null;
+  condition: "new" | "refurbished" | "used";
+  categoryName: string | null;
+  price: number;
+  compareAtPrice: number | null;
+  image: { url: string; altText?: string } | null;
+  stock: number;
+  inStock: boolean;
+  label: string | null;
+  isFeatured: boolean;
+  createdAt: Date;
+};
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,14 +35,10 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "20", 10)));
     const sort = searchParams.get("sort") || "newest";
-    const offset = (page - 1) * limit;
 
     // Build WHERE conditions
     const conditions = [eq(products.isActive, true)];
 
-    if (search) {
-      conditions.push(ilike(products.name, `%${search}%`));
-    }
     if (categoryId) {
       conditions.push(eq(products.categoryId, categoryId));
     }
@@ -36,140 +49,141 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(products.isFeatured, true));
     }
 
-    const whereClause = and(...conditions);
+    // Search: match by product name OR category name only
+    if (search) {
+      const pattern = `%${search}%`;
 
-    // Determine sort order
-    let orderByClause;
-    switch (sort) {
-      case "price_asc":
-        orderByClause = asc(products.createdAt); // will sort in JS after joining variants
-        break;
-      case "price_desc":
-        orderByClause = desc(products.createdAt);
-        break;
-      case "newest":
-      default:
-        orderByClause = desc(products.createdAt);
-        break;
+      // Find categories matching the search term
+      const matchingCats = await db
+        .select({ id: categories.id })
+        .from(categories)
+        .where(and(eq(categories.isActive, true), ilike(categories.name, pattern)));
+      const catIds = matchingCats.map((c) => c.id);
+
+      const searchOr: ReturnType<typeof ilike>[] = [
+        ilike(products.name, pattern),
+      ];
+
+      if (catIds.length > 0) {
+        searchOr.push(inArray(products.categoryId, catIds));
+      }
+
+      conditions.push(or(...searchOr)!);
     }
 
-    // Get total count
-    const countResult = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(products)
-      .where(whereClause);
+    const whereClause = and(...conditions);
 
-    const total = countResult[0]?.count ?? 0;
-
-    // Get products with category name
+    // Get ALL matching products (we need to explode variants before paginating)
     const productRows = await db
       .select({
-        id: products.id,
-        name: products.name,
-        slug: products.slug,
-        description: products.description,
-        condition: products.condition,
-        categoryId: products.categoryId,
+        product: products,
         categoryName: categories.name,
-        isFeatured: products.isFeatured,
-        createdAt: products.createdAt,
       })
       .from(products)
       .leftJoin(categories, eq(products.categoryId, categories.id))
       .where(whereClause)
-      .orderBy(orderByClause)
-      .limit(limit)
-      .offset(offset);
+      .orderBy(desc(products.createdAt));
 
-    // Get variant info for these products
-    const productIds = productRows.map((p) => p.id);
+    // ── Explode: each variant becomes a separate listing ──────────────────
+    const allListings: ProductListing[] = [];
 
-    if (productIds.length === 0) {
-      return NextResponse.json({
-        success: true,
-        data: {
-          products: [],
-          pagination: { page, limit, total, totalPages: 0 },
-        },
+    for (const row of productRows) {
+      const p = row.product;
+      const variantsArr = (p.variants ?? []) as ProductVariantData[];
+      const activeVariants = variantsArr.filter((v) => v.isActive !== false);
+
+      if (activeVariants.length > 0) {
+        // Create one listing per active variant
+        for (const v of activeVariants) {
+          const image =
+            v.images && v.images.length > 0
+              ? v.images[0]
+              : p.images && p.images.length > 0
+                ? p.images[0]
+                : null;
+
+          allListings.push({
+            id: `${p.id}__${v.variantId}`,
+            productId: p.id,
+            variantId: v.variantId,
+            name: v.displayName || `${p.name} ${v.name}`,
+            slug: p.slug,
+            description: v.description || p.description,
+            condition: p.condition,
+            categoryName: row.categoryName,
+            price: v.price,
+            compareAtPrice: v.compareAtPrice ?? null,
+            image,
+            stock: v.stock,
+            inStock: v.stock > 0,
+            label: v.label || null,
+            isFeatured: p.isFeatured,
+            createdAt: p.createdAt,
+          });
+        }
+      } else {
+        // No variants — single listing from base product fields
+        const image =
+          p.images && p.images.length > 0 ? p.images[0] : null;
+
+        allListings.push({
+          id: p.id,
+          productId: p.id,
+          variantId: null,
+          name: p.name,
+          slug: p.slug,
+          description: p.description,
+          condition: p.condition,
+          categoryName: row.categoryName,
+          price: p.basePrice,
+          compareAtPrice: p.compareAtPrice ?? null,
+          image,
+          stock: p.stock,
+          inStock: p.stock > 0,
+          label: null,
+          isFeatured: p.isFeatured,
+          createdAt: p.createdAt,
+        });
+      }
+    }
+
+    // ── Sort: name matches first, then category matches ─────────────────
+    let filteredListings = allListings;
+    if (search) {
+      const searchLower = search.toLowerCase();
+      filteredListings = allListings.sort((a, b) => {
+        const aNameMatch = a.name.toLowerCase().includes(searchLower) ? 0 : 1;
+        const bNameMatch = b.name.toLowerCase().includes(searchLower) ? 0 : 1;
+        return aNameMatch - bNameMatch;
       });
     }
 
-    // Fetch all active variants for these products
-    const variants = await db
-      .select({
-        productId: productVariants.productId,
-        price: productVariants.price,
-        compareAtPrice: productVariants.compareAtPrice,
-        images: productVariants.images,
-        stock: productVariants.stock,
-        isDefault: productVariants.isDefault,
-      })
-      .from(productVariants)
-      .where(
-        and(
-          eq(productVariants.isActive, true),
-          sql`${productVariants.productId} IN ${productIds}`
-        )
-      );
-
-    // Group variants by product
-    const variantsByProduct = new Map<
-      string,
-      (typeof variants)[number][]
-    >();
-    for (const v of variants) {
-      const arr = variantsByProduct.get(v.productId) || [];
-      arr.push(v);
-      variantsByProduct.set(v.productId, arr);
+    // ── Sort listings ────────────────────────────────────────────────────
+    switch (sort) {
+      case "price_asc":
+        filteredListings.sort((a, b) => a.price - b.price);
+        break;
+      case "price_desc":
+        filteredListings.sort((a, b) => b.price - a.price);
+        break;
+      case "newest":
+      default:
+        filteredListings.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        break;
     }
 
-    // Build response
-    const productsData = productRows.map((p) => {
-      const pvs = variantsByProduct.get(p.id) || [];
-      const defaultVariant = pvs.find((v) => v.isDefault) || pvs[0];
-      const prices = pvs.map((v) => v.price);
-      const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-      const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
-
-      const images = defaultVariant?.images as Array<{ url: string; altText?: string }> | undefined;
-
-      return {
-        id: p.id,
-        name: p.name,
-        slug: p.slug,
-        description: p.description,
-        condition: p.condition,
-        categoryId: p.categoryId,
-        categoryName: p.categoryName,
-        isFeatured: p.isFeatured,
-        defaultVariant: defaultVariant
-          ? {
-              price: defaultVariant.price,
-              compareAtPrice: defaultVariant.compareAtPrice,
-              image: images?.[0] ?? null,
-              inStock: defaultVariant.stock > 0,
-            }
-          : null,
-        variantsCount: pvs.length,
-        priceRange: { min: minPrice, max: maxPrice },
-      };
-    });
-
-    // Sort by price if needed (since we couldn't do it in SQL easily with variants)
-    if (sort === "price_asc") {
-      productsData.sort(
-        (a, b) => (a.priceRange.min || 0) - (b.priceRange.min || 0)
-      );
-    } else if (sort === "price_desc") {
-      productsData.sort(
-        (a, b) => (b.priceRange.min || 0) - (a.priceRange.min || 0)
-      );
-    }
+    // ── Paginate over listings (not products) ─────────────────────────────
+    const total = filteredListings.length;
+    const offset = (page - 1) * limit;
+    const paginatedListings = filteredListings.slice(offset, offset + limit);
 
     return NextResponse.json({
       success: true,
       data: {
-        products: productsData,
+        products: paginatedListings,
         pagination: {
           page,
           limit,
