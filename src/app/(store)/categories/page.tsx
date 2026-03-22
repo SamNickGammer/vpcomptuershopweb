@@ -30,10 +30,13 @@ export default function CategoriesPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Build hierarchy: top-level categories with their children
+  // Show all categories — group children under parents, but also show children as their own cards
   const topLevel = categories.filter((c) => !c.parentId);
+  const childCategories = categories.filter((c) => c.parentId);
   const getChildren = (parentId: string) =>
     categories.filter((c) => c.parentId === parentId);
+  const getParentName = (parentId: string | null) =>
+    parentId ? categories.find((c) => c.id === parentId)?.name : null;
 
   return (
     <div className="min-h-screen bg-white">
@@ -75,65 +78,55 @@ export default function CategoriesPage() {
               <p className="text-gray-500">No categories available yet.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {topLevel.map((category) => {
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {categories.map((category) => {
                 const children = getChildren(category.id);
+                const parentName = getParentName(category.parentId);
                 return (
                   <Link
                     key={category.id}
                     href={`/products?categoryId=${category.id}`}
                     className="group block"
                   >
-                    <div className="bg-white rounded-2xl border border-gray-200 p-6 hover:border-gray-300 transition-all duration-300 h-full">
-                      {/* Top: Image + Name */}
-                      <div className="flex items-start gap-4 mb-4">
-                        <div className="w-16 h-16 rounded-xl bg-amber-50 border border-gray-200 overflow-hidden flex items-center justify-center flex-shrink-0 group-hover:border-amber-300 transition-colors">
-                          {category.imageUrl ? (
+                    <div className="bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all duration-300 h-full overflow-hidden">
+                      {/* Image */}
+                      <div className="aspect-[4/3] bg-gray-50 overflow-hidden relative">
+                        {category.imageUrl ? (
+                          <>
                             <ProductImage
                               src={category.imageUrl}
                               alt={category.name}
-                              width={64}
-                              height={64}
-                              className="object-cover w-full h-full"
+                              fill
+                              className="object-cover transition-transform duration-500 group-hover:scale-105"
+                              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                             />
-                          ) : (
-                            <FolderTree className="h-7 w-7 text-gray-400 group-hover:text-amber-600 transition-colors" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h2 className="text-lg font-semibold text-gray-900 group-hover:text-amber-600 transition-colors">
-                            {category.name}
-                          </h2>
-                          {category.productCount !== undefined && (
-                            <p className="text-sm text-gray-400 flex items-center gap-1.5 mt-0.5">
-                              <Package className="h-3.5 w-3.5" />
-                              {category.productCount} product{category.productCount !== 1 ? "s" : ""}
-                            </p>
-                          )}
-                        </div>
-                        <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-amber-600 group-hover:translate-x-0.5 transition-all flex-shrink-0 mt-1" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                          </>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <FolderTree className="h-10 w-10 text-gray-300 group-hover:text-amber-400 transition-colors" />
+                          </div>
+                        )}
+                        {/* Parent badge */}
+                        {parentName && (
+                          <span className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm text-[10px] font-medium text-gray-600 px-2 py-0.5 rounded-md">
+                            {parentName}
+                          </span>
+                        )}
                       </div>
 
-                      {/* Description */}
-                      {category.description && (
-                        <p className="text-sm text-gray-400 line-clamp-2 mb-3">
-                          {category.description}
-                        </p>
-                      )}
-
-                      {/* Sub-categories */}
-                      {children.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 pt-3 border-t border-gray-200">
-                          {children.map((child) => (
-                            <span
-                              key={child.id}
-                              className="px-2.5 py-1 rounded-lg text-xs font-medium text-gray-500 bg-gray-50 border border-gray-200"
-                            >
-                              {child.name}
-                            </span>
-                          ))}
+                      {/* Info */}
+                      <div className="p-3.5">
+                        <h2 className="text-sm font-semibold text-gray-900 group-hover:text-amber-600 transition-colors mb-1">
+                          {category.name}
+                        </h2>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-400">
+                            {category.productCount ?? 0} product{(category.productCount ?? 0) !== 1 ? "s" : ""}
+                          </span>
+                          <ArrowRight className="h-3.5 w-3.5 text-gray-300 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all" />
                         </div>
-                      )}
+                      </div>
                     </div>
                   </Link>
                 );
