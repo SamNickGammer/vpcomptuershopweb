@@ -83,16 +83,38 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate all products exist and have enough stock
-    const productIds = [...new Set(body.items.map((i) => i.productId))];
-    const productRows = await db
-      .select()
-      .from(products)
-      .where(sql`${products.id} IN ${productIds}`);
+    // Items may have productId directly, or we need to look up all products
+    const productIds = [...new Set(body.items.map((i) => i.productId).filter(Boolean))];
+
+    let productRows;
+    if (productIds.length > 0) {
+      productRows = await db
+        .select()
+        .from(products)
+        .where(sql`${products.id} IN ${productIds}`);
+    } else {
+      // Fallback: fetch all active products and match by variantId
+      productRows = await db.select().from(products).where(eq(products.isActive, true));
+    }
 
     const productMap = new Map(productRows.map((p) => [p.id, p]));
 
+    // Also build a variantId → product mapping for items without productId
+    const variantToProduct = new Map<string, typeof productRows[number]>();
+    for (const p of productRows) {
+      const variants = (p.variants ?? []) as Array<{ variantId: string }>;
+      for (const v of variants) {
+        variantToProduct.set(v.variantId, p);
+      }
+    }
+
+    // Resolve productId for each item and validate stock
     for (const item of body.items) {
-      const product = productMap.get(item.productId);
+      let product = item.productId ? productMap.get(item.productId) : undefined;
+      if (!product && item.variantId) {
+        product = variantToProduct.get(item.variantId);
+        if (product) item.productId = product.id; // backfill
+      }
       if (!product) {
         return NextResponse.json(
           { error: `Product not found: ${item.productName}` },
