@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { products, categories } from "@/lib/db/schema";
-import { eq, and, or, ilike, sql, desc } from "drizzle-orm";
+import { eq, and, or, ilike, sql, desc, inArray } from "drizzle-orm";
 import type { ProductVariantData } from "@/lib/db/schema/products";
 
 // A single storefront listing — one per variant (or one per product if no variants)
@@ -49,24 +49,23 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(products.isFeatured, true));
     }
 
-    // Search: match product name, description, SKU, variant data, OR category name
+    // Search: match by product name OR category name only
     if (search) {
-      // First find categories matching the search term
+      const pattern = `%${search}%`;
+
+      // Find categories matching the search term
       const matchingCats = await db
         .select({ id: categories.id })
         .from(categories)
-        .where(and(eq(categories.isActive, true), ilike(categories.name, `%${search}%`)));
+        .where(and(eq(categories.isActive, true), ilike(categories.name, pattern)));
       const catIds = matchingCats.map((c) => c.id);
 
-      const searchOr = [
-        ilike(products.name, `%${search}%`),
-        ilike(products.description, `%${search}%`),
-        sql`${products.variants}::text ILIKE ${"%" + search + "%"}`,
+      const searchOr: ReturnType<typeof ilike>[] = [
+        ilike(products.name, pattern),
       ];
 
-      // Also include products in matching categories
       if (catIds.length > 0) {
-        searchOr.push(sql`${products.categoryId} IN ${catIds}`);
+        searchOr.push(inArray(products.categoryId, catIds));
       }
 
       conditions.push(or(...searchOr)!);
@@ -148,15 +147,15 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ── Filter by search at variant-listing level ─────────────────────────
+    // ── Sort: name matches first, then category matches ─────────────────
     let filteredListings = allListings;
     if (search) {
       const searchLower = search.toLowerCase();
-      filteredListings = allListings.filter(
-        (l) =>
-          l.name.toLowerCase().includes(searchLower) ||
-          (l.description && l.description.toLowerCase().includes(searchLower))
-      );
+      filteredListings = allListings.sort((a, b) => {
+        const aNameMatch = a.name.toLowerCase().includes(searchLower) ? 0 : 1;
+        const bNameMatch = b.name.toLowerCase().includes(searchLower) ? 0 : 1;
+        return aNameMatch - bNameMatch;
+      });
     }
 
     // ── Sort listings ────────────────────────────────────────────────────

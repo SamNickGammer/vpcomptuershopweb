@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { products, categories } from "@/lib/db/schema";
-import { eq, and, or, ilike, sql } from "drizzle-orm";
+import { eq, and, or, ilike, inArray } from "drizzle-orm";
 import type { ProductVariantData } from "@/lib/db/schema/products";
 
 export async function GET(request: NextRequest) {
@@ -35,18 +35,13 @@ export async function GET(request: NextRequest) {
     // 2. Find products matching: name, description, variant data, SKU, OR belonging to matched categories
     const productConditions = [eq(products.isActive, true)];
 
-    const searchOr = [
+    const searchOr: ReturnType<typeof ilike>[] = [
       ilike(products.name, searchPattern),
-      ilike(products.description, searchPattern),
-      sql`${products.variants}::text ILIKE ${searchPattern}`,
-      ilike(products.sku, searchPattern),
     ];
 
     // Also match products in categories that match the search term
     if (matchedCategoryIds.length > 0) {
-      searchOr.push(
-        sql`${products.categoryId} IN ${matchedCategoryIds}`
-      );
+      searchOr.push(inArray(products.categoryId, matchedCategoryIds));
     }
 
     productConditions.push(or(...searchOr)!);
@@ -126,6 +121,14 @@ export async function GET(request: NextRequest) {
         });
       }
     }
+
+    // Sort: name matches first, then category matches
+    const qLower = q.toLowerCase();
+    allListings.sort((a, b) => {
+      const aName = a.name.toLowerCase().includes(qLower) ? 0 : 1;
+      const bName = b.name.toLowerCase().includes(qLower) ? 0 : 1;
+      return aName - bName;
+    });
 
     return NextResponse.json({
       success: true,
