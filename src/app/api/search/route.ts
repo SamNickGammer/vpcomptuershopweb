@@ -17,43 +17,51 @@ export async function GET(request: NextRequest) {
 
     const searchPattern = `%${q}%`;
 
-    // Run categories and products queries in parallel
-    const [matchedCategories, productResults] = await Promise.all([
-      // Categories query
-      db
-        .select({
-          id: categories.id,
-          name: categories.name,
-          slug: categories.slug,
-          imageUrl: categories.imageUrl,
-        })
-        .from(categories)
-        .where(
-          and(
-            eq(categories.isActive, true),
-            ilike(categories.name, searchPattern)
-          )
-        )
-        .limit(4),
+    // 1. Find matching categories
+    const matchedCategories = await db
+      .select({
+        id: categories.id,
+        name: categories.name,
+        slug: categories.slug,
+        imageUrl: categories.imageUrl,
+      })
+      .from(categories)
+      .where(and(eq(categories.isActive, true), ilike(categories.name, searchPattern)))
+      .limit(4);
 
-      // Products query — match product name, description, OR variant data (displayNames)
-      db
-        .select()
-        .from(products)
-        .where(
-          and(
-            eq(products.isActive, true),
-            or(
-              ilike(products.name, searchPattern),
-              ilike(products.description, searchPattern),
-              sql`${products.variants}::text ILIKE ${searchPattern}`
-            )
-          )
-        )
-        .limit(20),
-    ]);
+    // Collect matched category IDs for product lookup
+    const matchedCategoryIds = matchedCategories.map((c) => c.id);
 
-    // Explode variants into individual search result listings
+    // 2. Find products matching: name, description, variant data, SKU, OR belonging to matched categories
+    const productConditions = [eq(products.isActive, true)];
+
+    const searchOr = [
+      ilike(products.name, searchPattern),
+      ilike(products.description, searchPattern),
+      sql`${products.variants}::text ILIKE ${searchPattern}`,
+      ilike(products.sku, searchPattern),
+    ];
+
+    // Also match products in categories that match the search term
+    if (matchedCategoryIds.length > 0) {
+      searchOr.push(
+        sql`${products.categoryId} IN ${matchedCategoryIds}`
+      );
+    }
+
+    productConditions.push(or(...searchOr)!);
+
+    const productResults = await db
+      .select({
+        product: products,
+        categoryName: categories.name,
+      })
+      .from(products)
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .where(and(...productConditions))
+      .limit(30);
+
+    // Explode variants into individual listings
     type SearchListing = {
       id: string;
       productId: string;
@@ -61,6 +69,7 @@ export async function GET(request: NextRequest) {
       name: string;
       slug: string;
       condition: "new" | "refurbished" | "used";
+      categoryName: string | null;
       price: number;
       compareAtPrice: number | null;
       image: { url: string; altText?: string } | null;
@@ -69,50 +78,38 @@ export async function GET(request: NextRequest) {
     };
 
     const allListings: SearchListing[] = [];
-    const qLower = q.toLowerCase();
 
-    for (const p of productResults) {
+    for (const row of productResults) {
+      const p = row.product;
+      const catName = row.categoryName;
       const variantsArr = (p.variants ?? []) as ProductVariantData[];
       const activeVariants = variantsArr.filter((v) => v.isActive !== false);
 
       if (activeVariants.length > 0) {
         for (const v of activeVariants) {
           const displayName = v.displayName || `${p.name} ${v.name}`;
-          // Check if this specific variant or the parent product matches the query
-          const matches =
-            p.name.toLowerCase().includes(qLower) ||
-            displayName.toLowerCase().includes(qLower) ||
-            v.name.toLowerCase().includes(qLower) ||
-            (v.description && v.description.toLowerCase().includes(qLower)) ||
-            (p.description && p.description.toLowerCase().includes(qLower));
+          const image =
+            v.images?.length > 0 ? v.images[0] :
+            (p.images as Array<{url: string; altText?: string}>)?.length > 0 ? (p.images as Array<{url: string; altText?: string}>)[0] :
+            null;
 
-          if (matches) {
-            const image =
-              v.images && v.images.length > 0
-                ? v.images[0]
-                : p.images && p.images.length > 0
-                  ? p.images[0]
-                  : null;
-
-            allListings.push({
-              id: `${p.id}__${v.variantId}`,
-              productId: p.id,
-              variantId: v.variantId,
-              name: displayName,
-              slug: p.slug,
-              condition: p.condition,
-              price: v.price,
-              compareAtPrice: v.compareAtPrice ?? null,
-              image,
-              inStock: v.stock > 0,
-              label: v.label || null,
-            });
-          }
+          allListings.push({
+            id: `${p.id}__${v.variantId}`,
+            productId: p.id,
+            variantId: v.variantId,
+            name: displayName,
+            slug: p.slug,
+            condition: p.condition,
+            categoryName: catName,
+            price: v.price,
+            compareAtPrice: v.compareAtPrice ?? null,
+            image,
+            inStock: v.stock > 0,
+            label: v.label || null,
+          });
         }
       } else {
-        const image =
-          p.images && p.images.length > 0 ? p.images[0] : null;
-
+        const imgs = p.images as Array<{url: string; altText?: string}> | null;
         allListings.push({
           id: p.id,
           productId: p.id,
@@ -120,9 +117,10 @@ export async function GET(request: NextRequest) {
           name: p.name,
           slug: p.slug,
           condition: p.condition,
+          categoryName: catName,
           price: p.basePrice,
           compareAtPrice: p.compareAtPrice ?? null,
-          image,
+          image: imgs?.[0] ?? null,
           inStock: p.stock > 0,
           label: null,
         });
@@ -133,7 +131,7 @@ export async function GET(request: NextRequest) {
       success: true,
       data: {
         categories: matchedCategories,
-        products: allListings.slice(0, 6),
+        products: allListings.slice(0, 8),
         totalProducts: allListings.length,
       },
     });

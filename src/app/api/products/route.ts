@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { products, categories } from "@/lib/db/schema";
-import { eq, and, ilike, sql, desc } from "drizzle-orm";
+import { eq, and, or, ilike, sql, desc } from "drizzle-orm";
 import type { ProductVariantData } from "@/lib/db/schema/products";
 
 // A single storefront listing — one per variant (or one per product if no variants)
@@ -49,16 +49,27 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(products.isFeatured, true));
     }
 
-    // For search we need to match product name OR variant displayNames,
-    // so we do a broad product-name search in SQL and also check variants in JS.
-    // If search has a value, we use ilike on product name in SQL but also check variants post-query.
+    // Search: match product name, description, SKU, variant data, OR category name
     if (search) {
-      // We'll fetch more broadly and filter in JS to catch variant displayName matches
-      // Only filter by product name in SQL — variant matching happens post-query
-      // Use OR: product name matches OR variants JSON contains the search term
-      conditions.push(
-        sql`(${ilike(products.name, `%${search}%`)} OR ${products.variants}::text ILIKE ${"%" + search + "%"})`
-      );
+      // First find categories matching the search term
+      const matchingCats = await db
+        .select({ id: categories.id })
+        .from(categories)
+        .where(and(eq(categories.isActive, true), ilike(categories.name, `%${search}%`)));
+      const catIds = matchingCats.map((c) => c.id);
+
+      const searchOr = [
+        ilike(products.name, `%${search}%`),
+        ilike(products.description, `%${search}%`),
+        sql`${products.variants}::text ILIKE ${"%" + search + "%"}`,
+      ];
+
+      // Also include products in matching categories
+      if (catIds.length > 0) {
+        searchOr.push(sql`${products.categoryId} IN ${catIds}`);
+      }
+
+      conditions.push(or(...searchOr)!);
     }
 
     const whereClause = and(...conditions);
