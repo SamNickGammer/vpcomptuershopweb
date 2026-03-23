@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { products, categories } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, ne, sql, desc } from "drizzle-orm";
 import type { ProductVariantData } from "@/lib/db/schema/products";
 
 export async function GET(
@@ -62,6 +62,114 @@ export async function GET(
       }
     }
 
+    // ── Fetch similar products ─────────────────────────────────────────────
+    // Priority: 1) same category, 2) similar name keywords
+    let similarProducts: Array<{
+      id: string;
+      name: string;
+      slug: string;
+      condition: string;
+      price: number;
+      compareAtPrice: number | null;
+      image: { url: string; altText?: string } | null;
+      inStock: boolean;
+      categoryName: string | null;
+    }> = [];
+
+    try {
+      // Get products from same category (excluding current product)
+      const similarRows = p.categoryId
+        ? await db
+            .select({
+              product: products,
+              categoryName: categories.name,
+            })
+            .from(products)
+            .leftJoin(categories, eq(products.categoryId, categories.id))
+            .where(
+              and(
+                eq(products.isActive, true),
+                eq(products.categoryId, p.categoryId),
+                ne(products.id, p.id)
+              )
+            )
+            .orderBy(desc(products.isFeatured), desc(products.createdAt))
+            .limit(8)
+        : [];
+
+      // If not enough from same category, also fetch by name similarity
+      if (similarRows.length < 5) {
+        const nameWords = p.name
+          .split(/\s+/)
+          .filter((w) => w.length > 3)
+          .slice(0, 2);
+        if (nameWords.length > 0) {
+          const existingIds = new Set([p.id, ...similarRows.map((r) => r.product.id)]);
+          for (const word of nameWords) {
+            if (similarRows.length >= 8) break;
+            const more = await db
+              .select({ product: products, categoryName: categories.name })
+              .from(products)
+              .leftJoin(categories, eq(products.categoryId, categories.id))
+              .where(
+                and(
+                  eq(products.isActive, true),
+                  sql`${products.name} ILIKE ${"%" + word + "%"}`
+                )
+              )
+              .limit(5);
+            for (const r of more) {
+              if (!existingIds.has(r.product.id) && similarRows.length < 8) {
+                existingIds.add(r.product.id);
+                similarRows.push(r);
+              }
+            }
+          }
+        }
+      }
+
+      // Map to response shape — explode variants
+      for (const row of similarRows) {
+        const sp = row.product;
+        const vars = (sp.variants ?? []) as ProductVariantData[];
+        const activeVars = vars.filter((v) => v.isActive !== false);
+
+        if (activeVars.length > 0) {
+          // Just show first active variant
+          const v = activeVars.find((vv) => vv.isDefault) || activeVars[0];
+          const img = v.images?.[0] || (sp.images as Array<{url:string;altText?:string}>)?.[0] || null;
+          similarProducts.push({
+            id: sp.id,
+            name: v.displayName || `${sp.name} ${v.name}`,
+            slug: sp.slug,
+            condition: sp.condition,
+            price: v.price,
+            compareAtPrice: v.compareAtPrice ?? null,
+            image: img,
+            inStock: v.stock > 0,
+            categoryName: row.categoryName,
+          });
+        } else {
+          const imgs = sp.images as Array<{url:string;altText?:string}> | null;
+          similarProducts.push({
+            id: sp.id,
+            name: sp.name,
+            slug: sp.slug,
+            condition: sp.condition,
+            price: sp.basePrice,
+            compareAtPrice: sp.compareAtPrice ?? null,
+            image: imgs?.[0] ?? null,
+            inStock: sp.stock > 0,
+            categoryName: row.categoryName,
+          });
+        }
+      }
+
+      similarProducts = similarProducts.slice(0, 5);
+    } catch (e) {
+      console.error("Similar products error:", e);
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -89,6 +197,7 @@ export async function GET(
         updatedAt: p.updatedAt,
         variants: activeVariants,
         selectedVariantId,
+        similarProducts,
       },
     });
   } catch (error) {

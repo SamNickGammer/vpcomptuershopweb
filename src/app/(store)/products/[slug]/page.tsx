@@ -65,6 +65,17 @@ type ProductData = {
   updatedAt: string;
   variants: ProductVariant[];
   selectedVariantId: string | null;
+  similarProducts?: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    condition: string;
+    price: number;
+    compareAtPrice: number | null;
+    image: { url: string; altText?: string } | null;
+    inStock: boolean;
+    categoryName: string | null;
+  }>;
 };
 
 // ── Condition config ─────────────────────────────────────────────────────────
@@ -425,8 +436,56 @@ export default function ProductDetailPage({
 
         {/* Two-column layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14">
-          {/* Left: Image Gallery */}
-          <ImageGallery images={currentImages} />
+          {/* Left: Image Gallery + Similar Products */}
+          <div className="space-y-6">
+            <ImageGallery images={currentImages} />
+
+            {/* Similar Products — below images */}
+            {product.similarProducts && product.similarProducts.length > 0 && (
+              <div className="pt-4">
+                <h3 className="text-sm font-bold text-gray-900 mb-3">Similar Products</h3>
+                <div className="grid grid-cols-3 gap-2">
+                  {product.similarProducts.slice(0, 6).map((sp) => {
+                    const spDiscount = sp.compareAtPrice && sp.compareAtPrice > sp.price
+                      ? Math.round(((sp.compareAtPrice - sp.price) / sp.compareAtPrice) * 100)
+                      : null;
+                    return (
+                      <Link key={sp.id} href={`/products/${sp.slug}`} className="group">
+                        <div className="rounded-lg border border-gray-200 overflow-hidden hover:shadow-sm hover:border-gray-300 transition-all bg-white">
+                          <div className="aspect-square bg-gray-50 relative overflow-hidden">
+                            {sp.image ? (
+                              <ProductImage
+                                src={sp.image.url}
+                                alt={sp.image.altText || sp.name}
+                                fill
+                                className="object-cover group-hover:scale-105 transition-transform duration-300"
+                                sizes="150px"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Package className="h-6 w-6 text-gray-300" />
+                              </div>
+                            )}
+                            {spDiscount && (
+                              <span className="absolute top-1 right-1 bg-red-500 text-white text-[8px] font-bold px-1 py-0.5 rounded">
+                                -{spDiscount}%
+                              </span>
+                            )}
+                          </div>
+                          <div className="p-2">
+                            <p className="text-[10px] font-medium text-gray-700 group-hover:text-amber-600 transition-colors line-clamp-2 leading-snug min-h-[28px]">
+                              {sp.name}
+                            </p>
+                            <p className="text-xs font-bold text-gray-900 mt-1">{formatPrice(sp.price)}</p>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Right: Product Info */}
           <div className="space-y-6">
@@ -675,6 +734,7 @@ export default function ProductDetailPage({
             )}
           </div>
         </div>
+
       </div>
     </div>
   );
