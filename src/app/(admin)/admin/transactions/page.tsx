@@ -1,13 +1,17 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   CreditCard,
   Loader2,
   ChevronLeft,
   ChevronRight,
   AlertCircle,
+  Link2,
+  Check,
 } from "lucide-react";
+import { toast } from "sonner";
 import { formatPrice, cn } from "@/lib/utils/helpers";
 
 type Transaction = {
@@ -65,6 +69,18 @@ export default function TransactionsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const copyPaymentUrl = async (razorpayOrderId: string, txnId: string) => {
+    try {
+      await navigator.clipboard.writeText(`https://rzp.io/rzp/${razorpayOrderId}`);
+      setCopiedId(txnId);
+      toast.success("Payment URL copied to clipboard");
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      toast.error("Failed to copy");
+    }
+  };
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true);
@@ -192,8 +208,13 @@ export default function TransactionsPage() {
                     key={txn.id}
                     className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors"
                   >
-                    <td className="px-4 py-3 font-mono text-xs text-foreground">
-                      {shortId(txn.id)}
+                    <td className="px-4 py-3 font-mono text-xs">
+                      <Link
+                        href={`/admin/transactions/${txn.id}`}
+                        className="text-primary hover:underline"
+                      >
+                        {shortId(txn.id)}
+                      </Link>
                     </td>
                     <td className="px-4 py-3 text-foreground font-medium">
                       {txn.orderNumber || "—"}
@@ -217,9 +238,27 @@ export default function TransactionsPage() {
                       {txn.method || "—"}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={statusBadge(txn.status)}>
-                        {txn.status}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={statusBadge(txn.status)}>
+                          {txn.status}
+                        </span>
+                        {txn.status === "created" && txn.razorpayOrderId && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyPaymentUrl(txn.razorpayOrderId!, txn.id);
+                            }}
+                            title="Copy Payment URL"
+                            className="p-1 rounded hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            {copiedId === txn.id ? (
+                              <Check className="h-3.5 w-3.5 text-green-400" />
+                            ) : (
+                              <Link2 className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                       {txn.razorpayPaymentId || "—"}

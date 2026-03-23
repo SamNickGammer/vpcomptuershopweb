@@ -247,6 +247,10 @@ export default function OrderDetailPage({
   const [refundNotes, setRefundNotes] = useState("");
   const [processingRefund, setProcessingRefund] = useState(false);
 
+  // Cancel & Refund dialog state
+  const [cancelRefundDialogOpen, setCancelRefundDialogOpen] = useState(false);
+  const [processingCancelRefund, setProcessingCancelRefund] = useState(false);
+
   // Delete order state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingOrder, setDeletingOrder] = useState(false);
@@ -293,6 +297,13 @@ export default function OrderDetailPage({
       toast.error("Please select a new status");
       return;
     }
+
+    // If cancelling a paid order, show cancel-refund dialog instead
+    if (newStatus === "cancelled" && order?.paymentStatus === "paid") {
+      setCancelRefundDialogOpen(true);
+      return;
+    }
+
     setUpdatingStatus(true);
     try {
       const res = await fetch(`/api/admin/orders/${id}`, {
@@ -316,6 +327,78 @@ export default function OrderDetailPage({
       toast.error("Failed to update status");
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  const handleCancelOnly = async () => {
+    setProcessingCancelRefund(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "cancelled",
+          notes: statusNotes || "Order cancelled without refund",
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success("Order cancelled (no refund)");
+        setCancelRefundDialogOpen(false);
+        setNewStatus("");
+        setStatusNotes("");
+        fetchOrder();
+      } else {
+        toast.error(json.error || "Failed to cancel order");
+      }
+    } catch {
+      toast.error("Failed to cancel order");
+    } finally {
+      setProcessingCancelRefund(false);
+    }
+  };
+
+  const handleCancelAndRefund = async () => {
+    setProcessingCancelRefund(true);
+    try {
+      // First cancel the order
+      const cancelRes = await fetch(`/api/admin/orders/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "cancelled",
+          notes: statusNotes || "Order cancelled with refund",
+        }),
+      });
+      const cancelJson = await cancelRes.json();
+      if (!cancelJson.success) {
+        toast.error(cancelJson.error || "Failed to cancel order");
+        return;
+      }
+
+      // Then initiate refund
+      const refundRes = await fetch(`/api/admin/orders/${id}/refund`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const refundJson = await refundRes.json();
+      if (refundJson.success) {
+        toast.success("Order cancelled and refund initiated");
+      } else {
+        toast.error(
+          "Order cancelled but refund failed: " +
+            (refundJson.error || "Unknown error")
+        );
+      }
+
+      setCancelRefundDialogOpen(false);
+      setNewStatus("");
+      setStatusNotes("");
+      fetchOrder();
+    } catch {
+      toast.error("Failed to cancel and refund order");
+    } finally {
+      setProcessingCancelRefund(false);
     }
   };
 
@@ -1305,6 +1388,56 @@ export default function OrderDetailPage({
               )}
               <RotateCcw className="h-4 w-4" />
               Confirm Refund
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel & Refund Dialog */}
+      <Dialog open={cancelRefundDialogOpen} onOpenChange={setCancelRefundDialogOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Cancel Order</DialogTitle>
+            <DialogDescription>
+              This order has been paid ({formatPrice(order.totalAmount)}). How would you like to proceed?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            <p className="text-sm text-muted-foreground">
+              Choose whether to cancel with or without initiating a Razorpay refund.
+            </p>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setCancelRefundDialogOpen(false)}
+              disabled={processingCancelRefund}
+              className="border-border"
+            >
+              Go Back
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleCancelOnly}
+              disabled={processingCancelRefund}
+              className="gap-2 border-orange-700/50 text-orange-400 hover:bg-orange-900/20 hover:text-orange-300"
+            >
+              {processingCancelRefund && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              Cancel Only
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCancelAndRefund}
+              disabled={processingCancelRefund}
+              className="gap-2"
+            >
+              {processingCancelRefund && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              <RotateCcw className="h-4 w-4" />
+              Cancel & Refund
             </Button>
           </DialogFooter>
         </DialogContent>
