@@ -15,6 +15,7 @@ import {
   CreditCard,
   ShoppingBag,
   ArrowRight,
+  AlertTriangle,
 } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils/helpers";
 
@@ -111,6 +112,10 @@ export default function TrackOrderPage() {
   const statusConfig = order ? STATUS_CONFIG[order.status] || STATUS_CONFIG.pending : null;
   const currentStepIndex = order ? STEPS.indexOf(order.status) : -1;
   const isCancelledOrReturned = order && (order.status === "cancelled" || order.status === "returned");
+  const isPaymentFailed = order?.paymentStatus === "failed";
+  const isPaymentPendingOnline =
+    order?.paymentStatus === "pending" && order?.paymentMethod !== "cod" && !isCancelledOrReturned;
+  const hideProgressStepper = isCancelledOrReturned || isPaymentFailed;
 
   return (
     <div className="min-h-screen bg-white">
@@ -171,6 +176,58 @@ export default function TrackOrderPage() {
         <section className="pb-20 px-4">
           <div className="max-w-4xl mx-auto space-y-6">
 
+            {/* Payment Failed Alert */}
+            {isPaymentFailed && (
+              <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-5 md:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="p-2 bg-red-100 rounded-full">
+                      <XCircle className="h-6 w-6 text-red-500" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-red-700 text-base">Payment Failed</h3>
+                      <p className="text-sm text-red-600 mt-0.5">
+                        Your payment could not be processed. Please try again.
+                      </p>
+                    </div>
+                  </div>
+                  <a
+                    href={`/checkout?retry=${order.orderNumber}`}
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
+                  >
+                    Retry Payment
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {/* Payment Pending (Online) Alert */}
+            {!isPaymentFailed && isPaymentPendingOnline && (
+              <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-5 md:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="p-2 bg-amber-100 rounded-full">
+                      <AlertTriangle className="h-6 w-6 text-amber-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-amber-700 text-base">Payment Pending</h3>
+                      <p className="text-sm text-amber-600 mt-0.5">
+                        Complete your payment to confirm this order.
+                      </p>
+                    </div>
+                  </div>
+                  <a
+                    href={`/checkout?retry=${order.orderNumber}`}
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium transition-colors"
+                  >
+                    Complete Payment
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </a>
+                </div>
+              </div>
+            )}
+
             {/* Status Header Card */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6 md:p-8">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
@@ -187,8 +244,8 @@ export default function TrackOrderPage() {
                 </div>
               </div>
 
-              {/* Progress Steps (only for normal flow, not cancelled/returned) */}
-              {!isCancelledOrReturned && (
+              {/* Progress Steps (only for normal flow, not cancelled/returned/failed payment) */}
+              {!hideProgressStepper && (
                 <div className="relative">
                   {/* Progress bar background */}
                   <div className="absolute top-4 left-0 right-0 h-0.5 bg-gray-200" />

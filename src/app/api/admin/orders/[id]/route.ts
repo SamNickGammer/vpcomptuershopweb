@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { eq, asc } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { orders, orderItems, trackingEvents, shipments } from "@/lib/db/schema";
+import { orders, orderItems, trackingEvents, shipments, transactions } from "@/lib/db/schema";
 import { getAdminFromCookie } from "@/lib/auth/admin";
 
 const statusTitleMap: Record<string, string> = {
@@ -173,6 +173,77 @@ export async function PUT(
       {
         success: false,
         error: error instanceof Error ? error.message : "Failed to update order",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const admin = await getAdminFromCookie();
+    if (!admin) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const { id } = await params;
+
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.id, id))
+      .limit(1);
+
+    if (!order) {
+      return NextResponse.json(
+        { success: false, error: "Order not found" },
+        { status: 404 }
+      );
+    }
+
+    // Only allow deletion of failed payment orders or abandoned online payment orders
+    const isFailedPayment = order.paymentStatus === "failed";
+    const isAbandonedOnline =
+      order.paymentStatus === "pending" && order.paymentMethod === "online";
+
+    if (!isFailedPayment && !isAbandonedOnline) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Only orders with failed payments or abandoned online payments can be deleted",
+        },
+        { status: 400 }
+      );
+    }
+
+    await db.transaction(async (tx) => {
+      // Delete associated transactions first
+      await tx.delete(transactions).where(eq(transactions.orderId, id));
+      // Delete tracking events
+      await tx.delete(trackingEvents).where(eq(trackingEvents.orderId, id));
+      // Delete shipments
+      await tx.delete(shipments).where(eq(shipments.orderId, id));
+      // Delete order items
+      await tx.delete(orderItems).where(eq(orderItems.orderId, id));
+      // Delete the order
+      await tx.delete(orders).where(eq(orders.id, id));
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("DELETE /api/admin/orders/[id] error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          error instanceof Error ? error.message : "Failed to delete order",
       },
       { status: 500 }
     );

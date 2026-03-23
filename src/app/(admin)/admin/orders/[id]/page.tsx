@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Loader2,
@@ -21,6 +22,7 @@ import {
   Tag,
   Hash,
   Receipt,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, formatPrice } from "@/lib/utils/helpers";
@@ -245,6 +247,11 @@ export default function OrderDetailPage({
   const [refundNotes, setRefundNotes] = useState("");
   const [processingRefund, setProcessingRefund] = useState(false);
 
+  // Delete order state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingOrder, setDeletingOrder] = useState(false);
+  const router = useRouter();
+
   // Shipment creation state
   const [shipmentProvider, setShipmentProvider] = useState("");
   const [shipmentTrackingNumber, setShipmentTrackingNumber] = useState("");
@@ -408,6 +415,32 @@ export default function OrderDetailPage({
     }
   };
 
+  const handleDeleteOrder = async () => {
+    setDeletingOrder(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${id}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success("Order deleted successfully");
+        router.push("/admin/orders");
+      } else {
+        toast.error(json.error || "Failed to delete order");
+      }
+    } catch {
+      toast.error("Failed to delete order");
+    } finally {
+      setDeletingOrder(false);
+      setDeleteDialogOpen(false);
+    }
+  };
+
+  const canDeleteOrder =
+    order &&
+    (order.paymentStatus === "failed" ||
+      (order.paymentStatus === "pending" && order.paymentMethod === "online"));
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -483,6 +516,17 @@ export default function OrderDetailPage({
         >
           {formatStatus(order.paymentStatus)}
         </Badge>
+        {canDeleteOrder && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setDeleteDialogOpen(true)}
+            className="gap-1.5 border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive ml-auto"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete Order
+          </Button>
+        )}
       </div>
 
       {/* Three-column layout */}
@@ -1261,6 +1305,44 @@ export default function OrderDetailPage({
               )}
               <RotateCcw className="h-4 w-4" />
               Confirm Refund
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Order Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Delete Order</DialogTitle>
+            <DialogDescription>
+              This order was not paid. Delete it permanently? This action cannot
+              be undone. Order{" "}
+              <span className="font-mono text-foreground">
+                {order.orderNumber}
+              </span>{" "}
+              and all associated data will be removed.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              className="border-border"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteOrder}
+              disabled={deletingOrder}
+              className="gap-2"
+            >
+              {deletingOrder && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              <Trash2 className="h-4 w-4" />
+              Delete Order
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -19,6 +19,10 @@ import {
   Plus,
   Trash2,
   Star,
+  AlertTriangle,
+  CreditCard,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -325,86 +329,169 @@ export default function AccountPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {orders.map((order) => (
-                <div
-                  key={order.id}
-                  className="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 transition-colors"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-amber-50 rounded-lg">
-                        <Package className="h-5 w-5 text-amber-600" />
+              {[...orders]
+                .sort((a, b) => {
+                  // Failed/pending-online orders first (need attention)
+                  const needsAttentionA =
+                    a.paymentStatus === "failed" ||
+                    (a.paymentStatus === "pending" && a.paymentMethod === "online")
+                      ? 1
+                      : 0;
+                  const needsAttentionB =
+                    b.paymentStatus === "failed" ||
+                    (b.paymentStatus === "pending" && b.paymentMethod === "online")
+                      ? 1
+                      : 0;
+                  if (needsAttentionB !== needsAttentionA)
+                    return needsAttentionB - needsAttentionA;
+                  // Then by date descending
+                  return (
+                    new Date(b.createdAt).getTime() -
+                    new Date(a.createdAt).getTime()
+                  );
+                })
+                .map((order) => {
+                  const isPaymentFailed = order.paymentStatus === "failed";
+                  const isPendingOnline =
+                    order.paymentStatus === "pending" &&
+                    order.paymentMethod === "online";
+                  const isDelivered = order.status === "delivered";
+                  const paymentMethodLabel =
+                    order.paymentMethod === "cod"
+                      ? "COD"
+                      : order.paymentMethod === "upi"
+                        ? "UPI"
+                        : order.paymentMethod === "bank_transfer"
+                          ? "Bank Transfer"
+                          : "Online";
+
+                  return (
+                    <div
+                      key={order.id}
+                      className={cn(
+                        "bg-white border rounded-xl overflow-hidden hover:border-gray-300 transition-colors",
+                        isPaymentFailed
+                          ? "border-red-200"
+                          : isPendingOnline
+                            ? "border-amber-200"
+                            : "border-gray-200"
+                      )}
+                    >
+                      {/* Top row: Order #, Date, Status, Payment badge */}
+                      <div className="px-5 pt-5 pb-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-amber-50 rounded-lg">
+                              <Package className="h-5 w-5 text-amber-600" />
+                            </div>
+                            <div>
+                              <p className="font-semibold font-mono text-amber-600 text-sm">
+                                {order.orderNumber}
+                              </p>
+                              <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                                <Clock className="h-3.5 w-3.5" />
+                                {formatDate(order.createdAt)}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span
+                              className={cn(
+                                "px-3 py-1 rounded-full text-xs font-medium border",
+                                STATUS_STYLES[order.status] ||
+                                  STATUS_STYLES.pending
+                              )}
+                            >
+                              {formatStatus(order.status)}
+                            </span>
+                            <span
+                              className={cn(
+                                "px-3 py-1 rounded-full text-xs font-medium border",
+                                PAYMENT_STATUS_STYLES[order.paymentStatus] ||
+                                  PAYMENT_STATUS_STYLES.pending
+                              )}
+                            >
+                              {formatStatus(order.paymentStatus)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <Link
-                          href={`/track-order?orderNumber=${order.orderNumber}`}
-                          className="font-semibold text-gray-900 hover:text-amber-600 transition-colors inline-flex items-center gap-1"
-                        >
-                          {order.orderNumber}
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </Link>
-                        <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                          <Clock className="h-3.5 w-3.5" />
-                          {formatDate(order.createdAt)}
+
+                      {/* Items list */}
+                      <div className="px-5 py-3 border-t border-gray-100">
+                        <div className="space-y-1">
+                          {order.items.map((item, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between text-sm"
+                            >
+                              <span className="text-gray-700">
+                                {item.productName}
+                                {item.variantName &&
+                                item.variantName !== "Default"
+                                  ? ` (${item.variantName})`
+                                  : ""}
+                              </span>
+                              <span className="text-gray-400 text-xs ml-2 whitespace-nowrap">
+                                x{item.quantity}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Bottom row: Total, Payment method, Actions */}
+                      <div className="px-5 py-4 border-t border-gray-200 bg-gray-50/50">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-center gap-4">
+                            <span className="text-lg font-bold text-gray-900">
+                              {formatPrice(order.totalAmount)}
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-xs text-gray-500 px-2 py-0.5 rounded bg-gray-100 border border-gray-200">
+                              <CreditCard className="h-3 w-3" />
+                              {paymentMethodLabel}
+                            </span>
+                            {isDelivered && (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 px-2 py-0.5 rounded-full bg-green-50 border border-green-200">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Delivered
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {isPaymentFailed && (
+                              <Link
+                                href={`/checkout?retry=${order.orderNumber}`}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-medium transition-colors"
+                              >
+                                <XCircle className="h-3.5 w-3.5" />
+                                Retry Payment
+                              </Link>
+                            )}
+                            {isPendingOnline && (
+                              <Link
+                                href={`/checkout?retry=${order.orderNumber}`}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium transition-colors"
+                              >
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                Complete Payment
+                              </Link>
+                            )}
+                            <Link
+                              href={`/track-order?orderNumber=${order.orderNumber}`}
+                              className="text-sm text-amber-600 hover:text-amber-700 transition-colors inline-flex items-center gap-1 font-medium"
+                            >
+                              Track Order
+                              <ChevronRight className="h-4 w-4" />
+                            </Link>
+                          </div>
                         </div>
                       </div>
                     </div>
-
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={cn(
-                          "px-3 py-1 rounded-full text-xs font-medium border",
-                          STATUS_STYLES[order.status] || STATUS_STYLES.pending
-                        )}
-                      >
-                        {formatStatus(order.status)}
-                      </span>
-                      <span
-                        className={cn(
-                          "px-3 py-1 rounded-full text-xs font-medium border",
-                          PAYMENT_STATUS_STYLES[order.paymentStatus] ||
-                            PAYMENT_STATUS_STYLES.pending
-                        )}
-                      >
-                        {formatStatus(order.paymentStatus)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Items summary */}
-                  <div className="text-sm text-gray-500 mb-3">
-                    {order.items.slice(0, 3).map((item, idx) => (
-                      <span key={idx}>
-                        {item.productName}
-                        {item.variantName && item.variantName !== "Default"
-                          ? ` (${item.variantName})`
-                          : ""}{" "}
-                        x{item.quantity}
-                        {idx < Math.min(order.items.length, 3) - 1 ? ", " : ""}
-                      </span>
-                    ))}
-                    {order.items.length > 3 && (
-                      <span className="text-gray-400">
-                        {" "}
-                        +{order.items.length - 3} more
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-between pt-3 border-t border-gray-200">
-                    <span className="text-lg font-bold text-gray-900">
-                      {formatPrice(order.totalAmount)}
-                    </span>
-                    <Link
-                      href={`/track-order?orderNumber=${order.orderNumber}`}
-                      className="text-sm text-amber-600 hover:text-amber-700 transition-colors inline-flex items-center gap-1 font-medium"
-                    >
-                      Track Order
-                      <ChevronRight className="h-4 w-4" />
-                    </Link>
-                  </div>
-                </div>
-              ))}
+                  );
+                })}
             </div>
           )}
         </div>
