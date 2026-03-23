@@ -385,9 +385,12 @@ export default function AccountPage() {
                               <Package className="h-5 w-5 text-amber-600" />
                             </div>
                             <div>
-                              <p className="font-semibold font-mono text-amber-600 text-sm">
+                              <Link
+                                href={`/account/orders/${order.id}`}
+                                className="font-semibold font-mono text-amber-600 text-sm hover:text-amber-700 hover:underline transition-colors"
+                              >
                                 {order.orderNumber}
-                              </p>
+                              </Link>
                               <div className="flex items-center gap-1.5 text-sm text-gray-500">
                                 <Clock className="h-3.5 w-3.5" />
                                 {formatDate(order.createdAt)}
@@ -480,11 +483,18 @@ export default function AccountPage() {
                               </Link>
                             )}
                             <Link
-                              href={`/track-order?orderNumber=${order.orderNumber}`}
+                              href={`/account/orders/${order.id}`}
                               className="text-sm text-amber-600 hover:text-amber-700 transition-colors inline-flex items-center gap-1 font-medium"
                             >
-                              Track Order
+                              View Details
                               <ChevronRight className="h-4 w-4" />
+                            </Link>
+                            <Link
+                              href={`/track-order?orderNumber=${order.orderNumber}`}
+                              className="text-sm text-gray-500 hover:text-gray-700 transition-colors inline-flex items-center gap-1 font-medium"
+                            >
+                              Track Order
+                              <ExternalLink className="h-3.5 w-3.5" />
                             </Link>
                           </div>
                         </div>
