@@ -70,12 +70,21 @@ export async function POST(req: NextRequest) {
     if (coupon.discountType === "percentage") {
       discount = Math.round((subtotal * coupon.discountValue) / 100);
       // Apply max discount cap
-      if (coupon.maxDiscountAmount !== null && discount > coupon.maxDiscountAmount) {
-        discount = coupon.maxDiscountAmount;
+      if (coupon.maxDiscountAmount !== null && discount > coupon.maxDiscountAmount * 100) {
+        discount = coupon.maxDiscountAmount * 100;
+      }
+    } else if (coupon.discountType === "pay_amount") {
+      // "Pay Amount" — customer pays only this amount, rest is discount
+      // discountValue is in rupees, convert to paise
+      const payAmount = coupon.discountValue * 100;
+      if (payAmount < subtotal) {
+        discount = subtotal - payAmount;
+      } else {
+        discount = 0; // pay amount >= subtotal, no discount
       }
     } else {
-      // Fixed discount
-      discount = coupon.discountValue;
+      // Fixed discount — discountValue is in rupees, convert to paise
+      discount = coupon.discountValue * 100;
     }
 
     // Discount cannot exceed subtotal

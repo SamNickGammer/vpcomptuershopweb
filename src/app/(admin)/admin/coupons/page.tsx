@@ -45,7 +45,7 @@ type Coupon = {
   id: string;
   code: string;
   description: string | null;
-  discountType: "percentage" | "fixed";
+  discountType: "percentage" | "fixed" | "pay_amount";
   discountValue: number;
   minOrderAmount: number | null;
   maxDiscountAmount: number | null;
@@ -61,7 +61,7 @@ type Coupon = {
 type FormData = {
   code: string;
   description: string;
-  discountType: "percentage" | "fixed";
+  discountType: "percentage" | "fixed" | "pay_amount";
   discountValue: number;
   minOrderAmount: string;
   maxDiscountAmount: string;
@@ -311,6 +311,9 @@ export default function CouponsPage() {
     if (coupon.discountType === "percentage") {
       return `${coupon.discountValue}%`;
     }
+    if (coupon.discountType === "pay_amount") {
+      return `Pay ${formatPrice(coupon.discountValue * 100)}`;
+    }
     return formatPrice(coupon.discountValue * 100);
   }
 
@@ -410,9 +413,11 @@ export default function CouponsPage() {
                       {coupon.description || "-"}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={coupon.discountType === "percentage" ? "info" : "purple"}>
+                      <Badge variant={coupon.discountType === "percentage" ? "info" : coupon.discountType === "pay_amount" ? "success" : "purple"}>
                         {coupon.discountType === "percentage"
                           ? "Percentage"
+                          : coupon.discountType === "pay_amount"
+                          ? "Pay Amount"
                           : "Fixed"}
                       </Badge>
                     </TableCell>
@@ -528,6 +533,7 @@ export default function CouponsPage() {
                 <SelectContent className="bg-card border-border">
                   <SelectItem value="percentage">Percentage</SelectItem>
                   <SelectItem value="fixed">Fixed Amount</SelectItem>
+                  <SelectItem value="pay_amount">Pay Amount (Final Price)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -538,7 +544,7 @@ export default function CouponsPage() {
                 Discount Value <span className="text-red-400">*</span>
               </Label>
               <div className="relative">
-                {formData.discountType === "fixed" && (
+                {(formData.discountType === "fixed" || formData.discountType === "pay_amount") && (
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
                     ₹
                   </span>
@@ -561,7 +567,7 @@ export default function CouponsPage() {
                   }
                   className={cn(
                     "bg-secondary border-border text-foreground placeholder:text-muted-foreground",
-                    formData.discountType === "fixed" && "pl-7"
+                    (formData.discountType === "fixed" || formData.discountType === "pay_amount") && "pl-7"
                   )}
                 />
                 {formData.discountType === "percentage" && (

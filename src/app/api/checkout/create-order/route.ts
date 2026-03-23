@@ -192,12 +192,17 @@ export async function POST(req: NextRequest) {
             );
             if (
               coupon.maxDiscountAmount !== null &&
-              discountAmount > coupon.maxDiscountAmount
+              discountAmount > coupon.maxDiscountAmount * 100
             ) {
-              discountAmount = coupon.maxDiscountAmount;
+              discountAmount = coupon.maxDiscountAmount * 100;
             }
+          } else if (coupon.discountType === "pay_amount") {
+            // Customer pays only this amount, rest is discount
+            const payAmount = coupon.discountValue * 100;
+            discountAmount = payAmount < subtotalAmount ? subtotalAmount - payAmount : 0;
           } else {
-            discountAmount = coupon.discountValue;
+            // Fixed — value is in rupees, convert to paise
+            discountAmount = coupon.discountValue * 100;
           }
           if (discountAmount > subtotalAmount) {
             discountAmount = subtotalAmount;
