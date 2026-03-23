@@ -8,3 +8,4 @@ export * from "./tracking";
 export * from "./coupons";
 export * from "./customers";
 export * from "./wishlists";
+export * from "./transactions";

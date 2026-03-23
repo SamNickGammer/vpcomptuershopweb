@@ -47,6 +47,7 @@ export const orders = pgTable("orders", {
     .default("cod"),
   paidAt: timestamp("paid_at", { withTimezone: true }),
   paymentReference: text("payment_reference"),
+  razorpayOrderId: varchar("razorpay_order_id", { length: 100 }),
   subtotalAmount: integer("subtotal_amount").notNull().default(0),
   discountAmount: integer("discount_amount").notNull().default(0),
   totalAmount: integer("total_amount").notNull(),

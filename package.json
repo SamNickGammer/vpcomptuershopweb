@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev3012": "next dev -p 3012",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -39,6 +40,7 @@
     "nanoid": "^5.1.7",
     "next": "16.1.7",
     "postgres": "^3.4.8",
+    "razorpay": "^2.9.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-hook-form": "^7.71.2",

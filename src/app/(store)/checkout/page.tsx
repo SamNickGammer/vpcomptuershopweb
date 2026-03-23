@@ -176,6 +176,44 @@ export default function CheckoutPage() {
     toast.info("Coupon removed");
   }
 
+  function loadRazorpay(): Promise<void> {
+    return new Promise((resolve) => {
+      if (document.getElementById("razorpay-script")) {
+        resolve();
+        return;
+      }
+      const script = document.createElement("script");
+      script.id = "razorpay-script";
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve();
+      document.body.appendChild(script);
+    });
+  }
+
+  async function saveNewAddress() {
+    if (selectedAddressId === "new" && saveAddress && line1.trim()) {
+      try {
+        await fetch("/api/auth/customer/addresses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            label: "Home",
+            name: name.trim(),
+            phone: phone.trim(),
+            line1: line1.trim(),
+            line2: line2.trim() || undefined,
+            city: city.trim(),
+            state: state.trim(),
+            pincode: pincode.trim(),
+            isDefault: savedAddresses.length === 0,
+          }),
+        });
+      } catch {
+        // Non-critical, don't block order success
+      }
+    }
+  }
+
   async function handlePlaceOrder() {
     // Validate fields
     if (!name.trim() || !email.trim() || !line1.trim() || !city.trim() || !pincode.trim()) {
@@ -193,7 +231,7 @@ export default function CheckoutPage() {
 
     setPlacing(true);
     try {
-      const res = await fetch("/api/checkout/place-order", {
+      const res = await fetch("/api/checkout/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -206,6 +244,8 @@ export default function CheckoutPage() {
             unitPrice: item.price,
           })),
           shippingAddress: {
+            name: name.trim(),
+            phone: phone.trim(),
             line1: line1.trim(),
             line2: line2.trim() || undefined,
             city: city.trim(),
@@ -220,35 +260,102 @@ export default function CheckoutPage() {
         }),
       });
       const data = await res.json();
-      if (res.ok && data.data?.orderNumber) {
-        // Save new address if checkbox is checked
-        if (selectedAddressId === "new" && saveAddress && line1.trim()) {
-          try {
-            await fetch("/api/auth/customer/addresses", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                label: "Home",
-                name: name.trim(),
-                phone: phone.trim(),
-                line1: line1.trim(),
-                line2: line2.trim() || undefined,
-                city: city.trim(),
-                state: state.trim(),
-                pincode: pincode.trim(),
-                isDefault: savedAddresses.length === 0,
-              }),
-            });
-          } catch {
-            // Non-critical, don't block order success
-          }
-        }
+
+      if (!res.ok || !data.success) {
+        toast.error(data.error || "Failed to place order");
+        return;
+      }
+
+      // COD flow
+      if (data.data.paymentMethod === "cod") {
+        await saveNewAddress();
         clearCart();
         toast.success("Order placed successfully!");
         router.push(`/track-order?orderNumber=${data.data.orderNumber}`);
-      } else {
-        toast.error(data.error || "Failed to place order");
+        return;
       }
+
+      // Online / UPI flow — open Razorpay checkout
+      await loadRazorpay();
+
+      const options = {
+        key: data.data.razorpayKeyId,
+        amount: data.data.amount,
+        currency: data.data.currency,
+        name: "V&P Computer Shop",
+        description: `Order ${data.data.orderNumber}`,
+        order_id: data.data.razorpayOrderId,
+        prefill: {
+          name: data.data.customerName,
+          email: data.data.customerEmail,
+          contact: data.data.customerPhone,
+        },
+        theme: { color: "#d97706" },
+        handler: async function (response: {
+          razorpay_order_id: string;
+          razorpay_payment_id: string;
+          razorpay_signature: string;
+        }) {
+          // Payment success — verify on server
+          try {
+            const verifyRes = await fetch("/api/checkout/verify-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                orderId: data.data.orderId,
+              }),
+            });
+            const verifyData = await verifyRes.json();
+            if (verifyData.success) {
+              await saveNewAddress();
+              clearCart();
+              router.push(
+                `/track-order?orderNumber=${verifyData.data.orderNumber}`
+              );
+              toast.success("Payment successful! Order confirmed.");
+            } else {
+              toast.error("Payment verification failed. Please contact support.");
+            }
+          } catch {
+            toast.error("Payment verification failed. Please contact support.");
+          }
+        },
+        modal: {
+          ondismiss: function () {
+            toast.info("Payment cancelled.");
+          },
+        },
+      };
+
+      const rzp = new (window as unknown as { Razorpay: new (opts: typeof options) => { open: () => void; on: (event: string, handler: (response: { error: { code: string; description: string; metadata: { order_id: string } } }) => void) => void } }).Razorpay(options);
+
+      rzp.on(
+        "payment.failed",
+        async function (response: {
+          error: {
+            code: string;
+            description: string;
+            metadata: { order_id: string };
+          };
+        }) {
+          await fetch("/api/checkout/payment-failed", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              razorpay_order_id: response.error.metadata.order_id,
+              error_code: response.error.code,
+              error_description: response.error.description,
+              orderId: data.data.orderId,
+            }),
+          });
+          toast.error("Payment failed: " + response.error.description);
+        }
+      );
+
+      rzp.open();
     } catch {
       toast.error("Something went wrong. Please try again.");
     } finally {
@@ -575,30 +682,70 @@ export default function CheckoutPage() {
                 </div>
               </label>
 
-              <label className="flex items-center gap-4 p-4 rounded-lg border border-gray-200 bg-gray-50 cursor-not-allowed opacity-50">
-                <input type="radio" name="payment" disabled className="sr-only" />
-                <div className="h-5 w-5 rounded-full border-2 border-gray-300" />
-                <CreditCard className="h-5 w-5 text-gray-400" />
-                <div className="flex-1">
-                  <p className="font-medium text-gray-500">Online Payment</p>
-                  <p className="text-sm text-gray-400">Coming soon</p>
+              <label
+                className={cn(
+                  "flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-all",
+                  paymentMethod === "online"
+                    ? "border-amber-500 bg-amber-50"
+                    : "border-gray-200 bg-gray-50 hover:border-gray-300"
+                )}
+              >
+                <input
+                  type="radio"
+                  name="payment"
+                  value="online"
+                  checked={paymentMethod === "online"}
+                  onChange={() => setPaymentMethod("online")}
+                  className="sr-only"
+                />
+                <div
+                  className={cn(
+                    "h-5 w-5 rounded-full border-2 flex items-center justify-center transition-colors",
+                    paymentMethod === "online" ? "border-amber-600" : "border-gray-300"
+                  )}
+                >
+                  {paymentMethod === "online" && (
+                    <div className="h-2.5 w-2.5 rounded-full bg-amber-600" />
+                  )}
                 </div>
-                <span className="text-xs px-2 py-1 bg-gray-100 border border-gray-200 rounded-full text-gray-500">
-                  Soon
-                </span>
+                <CreditCard className="h-5 w-5 text-gray-500" />
+                <div className="flex-1">
+                  <p className="font-medium text-gray-900">Online Payment</p>
+                  <p className="text-sm text-gray-500">Pay via Card, Net Banking, Wallet</p>
+                </div>
               </label>
 
-              <label className="flex items-center gap-4 p-4 rounded-lg border border-gray-200 bg-gray-50 cursor-not-allowed opacity-50">
-                <input type="radio" name="payment" disabled className="sr-only" />
-                <div className="h-5 w-5 rounded-full border-2 border-gray-300" />
-                <Smartphone className="h-5 w-5 text-gray-400" />
-                <div className="flex-1">
-                  <p className="font-medium text-gray-500">UPI</p>
-                  <p className="text-sm text-gray-400">Coming soon</p>
+              <label
+                className={cn(
+                  "flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-all",
+                  paymentMethod === "upi"
+                    ? "border-amber-500 bg-amber-50"
+                    : "border-gray-200 bg-gray-50 hover:border-gray-300"
+                )}
+              >
+                <input
+                  type="radio"
+                  name="payment"
+                  value="upi"
+                  checked={paymentMethod === "upi"}
+                  onChange={() => setPaymentMethod("upi")}
+                  className="sr-only"
+                />
+                <div
+                  className={cn(
+                    "h-5 w-5 rounded-full border-2 flex items-center justify-center transition-colors",
+                    paymentMethod === "upi" ? "border-amber-600" : "border-gray-300"
+                  )}
+                >
+                  {paymentMethod === "upi" && (
+                    <div className="h-2.5 w-2.5 rounded-full bg-amber-600" />
+                  )}
                 </div>
-                <span className="text-xs px-2 py-1 bg-gray-100 border border-gray-200 rounded-full text-gray-500">
-                  Soon
-                </span>
+                <Smartphone className="h-5 w-5 text-gray-500" />
+                <div className="flex-1">
+                  <p className="font-medium text-gray-900">UPI</p>
+                  <p className="text-sm text-gray-500">Pay via Google Pay, PhonePe, Paytm</p>
+                </div>
               </label>
             </div>
           </div>

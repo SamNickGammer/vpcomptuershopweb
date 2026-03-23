@@ -13,6 +13,7 @@ import {
   LogOut,
   Cpu,
   Ticket,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils/helpers";
 
@@ -32,6 +33,7 @@ const navSections = [
       { label: "Orders", href: "/admin/orders", icon: ShoppingCart },
       { label: "Inventory", href: "/admin/inventory", icon: Warehouse },
       { label: "Coupons", href: "/admin/coupons", icon: Ticket },
+      { label: "Transactions", href: "/admin/transactions", icon: CreditCard },
     ],
   },
   {

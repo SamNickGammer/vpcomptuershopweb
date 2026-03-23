@@ -13,6 +13,7 @@ const pageMeta: Record<string, { title: string; subtitle?: string }> = {
   "/admin/orders": { title: "Orders", subtitle: "View and manage orders" },
   "/admin/inventory": { title: "Inventory", subtitle: "Stock management" },
   "/admin/coupons": { title: "Coupons", subtitle: "Manage discounts & promotions" },
+  "/admin/transactions": { title: "Transactions", subtitle: "Payment records & refunds" },
   "/admin/settings": { title: "Settings", subtitle: "Store configuration" },
 };
 
