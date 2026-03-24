@@ -91,6 +91,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate all products exist and have enough stock
+    // productId may be "uuid" or "uuid__variantId" — extract the real product UUID
+    for (const item of body.items) {
+      if (item.productId && item.productId.includes("__")) {
+        const [realProductId, realVariantId] = item.productId.split("__");
+        item.productId = realProductId;
+        if (!item.variantId) item.variantId = realVariantId;
+      }
+    }
     const productIds = [
       ...new Set(body.items.map((i) => i.productId).filter(Boolean)),
     ];
