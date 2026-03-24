@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, text, timestamp, integer } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { orders } from "./orders";
 import { admins } from "./admin";
@@ -32,6 +32,8 @@ export const shipments = pgTable("shipments", {
   trackingUrl: text("tracking_url"), // direct tracking link if available
   shippedAt: timestamp("shipped_at", { withTimezone: true }),
   estimatedDelivery: timestamp("estimated_delivery", { withTimezone: true }),
+  shiprocketShipmentId: integer("shiprocket_shipment_id"),
+  shiprocketOrderId: integer("shiprocket_order_id"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

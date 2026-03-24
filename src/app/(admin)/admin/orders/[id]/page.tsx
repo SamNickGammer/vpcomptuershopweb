@@ -256,12 +256,35 @@ export default function OrderDetailPage({
   const [deletingOrder, setDeletingOrder] = useState(false);
   const router = useRouter();
 
-  // Shipment creation state
+  // Shipment creation state (legacy)
   const [shipmentProvider, setShipmentProvider] = useState("");
   const [shipmentTrackingNumber, setShipmentTrackingNumber] = useState("");
   const [shipmentTrackingUrl, setShipmentTrackingUrl] = useState("");
   const [shipmentEstDelivery, setShipmentEstDelivery] = useState("");
   const [creatingShipment, setCreatingShipment] = useState(false);
+
+  // Shiprocket shipping state
+  const [shiprocketDialogOpen, setShiprocketDialogOpen] = useState(false);
+  const [shiprocketWeight, setShiprocketWeight] = useState("0.5");
+  const [shiprocketLength, setShiprocketLength] = useState("20");
+  const [shiprocketBreadth, setShiprocketBreadth] = useState("15");
+  const [shiprocketHeight, setShiprocketHeight] = useState("10");
+  const [shiprocketPickup, setShiprocketPickup] = useState("Primary");
+  const [shippingViaSR, setShippingViaSR] = useState(false);
+
+  // TrackOn shipping state
+  const [trackonDialogOpen, setTrackonDialogOpen] = useState(false);
+  const [trackonTrackingNumber, setTrackonTrackingNumber] = useState("");
+  const [trackonTrackingUrl, setTrackonTrackingUrl] = useState("");
+  const [shippingViaTrackon, setShippingViaTrackon] = useState(false);
+
+  // Self delivery state
+  const [selfDeliveryDialogOpen, setSelfDeliveryDialogOpen] = useState(false);
+  const [shippingViaSelf, setShippingViaSelf] = useState(false);
+
+  // Tracking refresh state
+  const [refreshingTracking, setRefreshingTracking] = useState(false);
+  const [liveTracking, setLiveTracking] = useState<Record<string, unknown> | null>(null);
 
   const fetchOrder = useCallback(async () => {
     setLoading(true);
@@ -495,6 +518,122 @@ export default function OrderDetailPage({
       toast.error("Failed to create shipment");
     } finally {
       setCreatingShipment(false);
+    }
+  };
+
+  const handleShipViaShiprocket = async () => {
+    if (!order) return;
+    setShippingViaSR(true);
+    try {
+      const res = await fetch("/api/admin/shipping/ship", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: order.id,
+          provider: "shiprocket",
+          weight: parseFloat(shiprocketWeight) || 0.5,
+          length: parseFloat(shiprocketLength) || 20,
+          breadth: parseFloat(shiprocketBreadth) || 15,
+          height: parseFloat(shiprocketHeight) || 10,
+          pickupLocation: shiprocketPickup || "Primary",
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        const awb = json.data?.awb;
+        toast.success(
+          awb
+            ? `Shipped via Shiprocket! AWB: ${awb}`
+            : "Shiprocket order created successfully"
+        );
+        setShiprocketDialogOpen(false);
+        fetchOrder();
+      } else {
+        toast.error(json.error || "Failed to ship via Shiprocket");
+      }
+    } catch {
+      toast.error("Failed to ship via Shiprocket");
+    } finally {
+      setShippingViaSR(false);
+    }
+  };
+
+  const handleShipViaTrackon = async () => {
+    if (!order) return;
+    setShippingViaTrackon(true);
+    try {
+      const res = await fetch("/api/admin/shipping/ship", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: order.id,
+          provider: "trackon",
+          trackingNumber: trackonTrackingNumber || undefined,
+          trackingUrl: trackonTrackingUrl || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success("Shipped via TrackOn!");
+        setTrackonDialogOpen(false);
+        setTrackonTrackingNumber("");
+        setTrackonTrackingUrl("");
+        fetchOrder();
+      } else {
+        toast.error(json.error || "Failed to ship via TrackOn");
+      }
+    } catch {
+      toast.error("Failed to ship via TrackOn");
+    } finally {
+      setShippingViaTrackon(false);
+    }
+  };
+
+  const handleSelfDelivery = async () => {
+    if (!order) return;
+    setShippingViaSelf(true);
+    try {
+      const res = await fetch("/api/admin/shipping/ship", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: order.id,
+          provider: "self",
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success("Self delivery started!");
+        setSelfDeliveryDialogOpen(false);
+        fetchOrder();
+      } else {
+        toast.error(json.error || "Failed to create self delivery");
+      }
+    } catch {
+      toast.error("Failed to create self delivery");
+    } finally {
+      setShippingViaSelf(false);
+    }
+  };
+
+  const handleRefreshTracking = async () => {
+    if (!order) return;
+    setRefreshingTracking(true);
+    try {
+      const res = await fetch(
+        `/api/admin/shipping/track?orderId=${order.id}`
+      );
+      const json = await res.json();
+      if (json.success) {
+        setLiveTracking(json.data?.tracking || null);
+        toast.success("Tracking data refreshed");
+      } else {
+        toast.error(json.error || "Failed to refresh tracking");
+      }
+    } catch {
+      toast.error("Failed to refresh tracking");
+    } finally {
+      setRefreshingTracking(false);
     }
   };
 
@@ -1093,7 +1232,7 @@ export default function OrderDetailPage({
                       {order.shipment.externalTrackingNumber && (
                         <div className="flex justify-between items-center">
                           <span className="text-xs text-muted-foreground uppercase tracking-wider">
-                            Tracking #
+                            AWB / Tracking #
                           </span>
                           <span className="text-sm font-mono text-foreground">
                             {order.shipment.externalTrackingNumber}
@@ -1121,105 +1260,76 @@ export default function OrderDetailPage({
                         </div>
                       )}
                     </div>
-                    {order.shipment.trackingUrl && (
-                      <a
-                        href={order.shipment.trackingUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 w-full rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 text-sm font-medium text-primary hover:bg-primary/10 transition-colors"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                        Track Package
-                      </a>
+
+                    {/* Live tracking data */}
+                    {liveTracking && (
+                      <div className="rounded-lg bg-primary/5 border border-primary/20 p-3 space-y-1">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                          Live Tracking
+                        </p>
+                        <pre className="text-xs text-foreground whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
+                          {JSON.stringify(liveTracking, null, 2)}
+                        </pre>
+                      </div>
                     )}
+
+                    <div className="flex gap-2">
+                      {order.shipment.trackingUrl && (
+                        <a
+                          href={order.shipment.trackingUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 text-sm font-medium text-primary hover:bg-primary/10 transition-colors"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          Track Package
+                        </a>
+                      )}
+                      <Button
+                        variant="outline"
+                        onClick={handleRefreshTracking}
+                        disabled={refreshingTracking}
+                        className="border-border"
+                      >
+                        {refreshingTracking ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <RotateCcw className="h-4 w-4" />
+                        )}
+                        <span className="ml-1.5">Refresh</span>
+                      </Button>
+                    </div>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     <p className="text-sm text-muted-foreground">
-                      Create a shipment to start tracking delivery.
+                      Choose a shipping method to dispatch this order.
                     </p>
 
-                    <div className="space-y-3">
-                      <div className="space-y-2">
-                        <Label className="text-foreground">Provider</Label>
-                        <Select
-                          value={shipmentProvider}
-                          onValueChange={setShipmentProvider}
-                        >
-                          <SelectTrigger className="bg-secondary border-border">
-                            <SelectValue placeholder="Select provider" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {SHIPPING_PROVIDERS.map((p) => (
-                              <SelectItem key={p} value={p}>
-                                {p}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-foreground">
-                          Tracking #{" "}
-                          <span className="text-muted-foreground font-normal">
-                            (optional)
-                          </span>
-                        </Label>
-                        <Input
-                          placeholder="AWB / Consignment number"
-                          value={shipmentTrackingNumber}
-                          onChange={(e) =>
-                            setShipmentTrackingNumber(e.target.value)
-                          }
-                          className="bg-secondary border-border"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-foreground">
-                          Tracking URL{" "}
-                          <span className="text-muted-foreground font-normal">
-                            (optional)
-                          </span>
-                        </Label>
-                        <Input
-                          placeholder="https://..."
-                          value={shipmentTrackingUrl}
-                          onChange={(e) =>
-                            setShipmentTrackingUrl(e.target.value)
-                          }
-                          className="bg-secondary border-border"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-foreground">
-                          Est. Delivery{" "}
-                          <span className="text-muted-foreground font-normal">
-                            (optional)
-                          </span>
-                        </Label>
-                        <Input
-                          type="date"
-                          value={shipmentEstDelivery}
-                          onChange={(e) =>
-                            setShipmentEstDelivery(e.target.value)
-                          }
-                          className="bg-secondary border-border"
-                        />
-                      </div>
-                    </div>
+                    <Button
+                      onClick={() => setShiprocketDialogOpen(true)}
+                      className="w-full gap-2"
+                    >
+                      <Truck className="h-4 w-4" />
+                      Ship via Shiprocket
+                    </Button>
 
                     <Button
-                      onClick={handleCreateShipment}
-                      disabled={!shipmentProvider || creatingShipment}
-                      className="w-full"
+                      variant="outline"
+                      onClick={() => setTrackonDialogOpen(true)}
+                      className="w-full gap-2 border-border"
                     >
-                      {creatingShipment && (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      )}
-                      Create Shipment
+                      <Truck className="h-4 w-4" />
+                      Ship via TrackOn
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      onClick={() => setSelfDeliveryDialogOpen(true)}
+                      className="w-full gap-2 border-border"
+                    >
+                      <Package className="h-4 w-4" />
+                      Self Delivery
                     </Button>
                   </div>
                 )}
@@ -1476,6 +1586,198 @@ export default function OrderDetailPage({
               )}
               <Trash2 className="h-4 w-4" />
               Delete Order
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Shiprocket Dialog */}
+      <Dialog open={shiprocketDialogOpen} onOpenChange={setShiprocketDialogOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Ship via Shiprocket</DialogTitle>
+            <DialogDescription>
+              Create a shipment on Shiprocket for order{" "}
+              <span className="font-mono text-foreground">{order.orderNumber}</span>.
+              A courier will be auto-assigned and pickup scheduled.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label className="text-foreground">Weight (kg)</Label>
+              <Input
+                type="number"
+                step="0.1"
+                min="0.1"
+                value={shiprocketWeight}
+                onChange={(e) => setShiprocketWeight(e.target.value)}
+                className="bg-secondary border-border font-mono"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Dimensions (cm)</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <span className="text-xs text-muted-foreground">Length</span>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={shiprocketLength}
+                    onChange={(e) => setShiprocketLength(e.target.value)}
+                    className="bg-secondary border-border font-mono"
+                  />
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">Breadth</span>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={shiprocketBreadth}
+                    onChange={(e) => setShiprocketBreadth(e.target.value)}
+                    className="bg-secondary border-border font-mono"
+                  />
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">Height</span>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={shiprocketHeight}
+                    onChange={(e) => setShiprocketHeight(e.target.value)}
+                    className="bg-secondary border-border font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">Pickup Location</Label>
+              <Input
+                value={shiprocketPickup}
+                onChange={(e) => setShiprocketPickup(e.target.value)}
+                placeholder="Primary"
+                className="bg-secondary border-border"
+              />
+              <p className="text-xs text-muted-foreground">
+                Must match a pickup location name configured in your Shiprocket account.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShiprocketDialogOpen(false)}
+              className="border-border"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleShipViaShiprocket}
+              disabled={shippingViaSR}
+              className="gap-2"
+            >
+              {shippingViaSR && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              <Truck className="h-4 w-4" />
+              Ship Order
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* TrackOn Dialog */}
+      <Dialog open={trackonDialogOpen} onOpenChange={setTrackonDialogOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Ship via TrackOn</DialogTitle>
+            <DialogDescription>
+              Enter tracking details for TrackOn courier shipment.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label className="text-foreground">
+                Tracking Number{" "}
+                <span className="text-muted-foreground font-normal">(optional)</span>
+              </Label>
+              <Input
+                placeholder="e.g. TRKN123456789"
+                value={trackonTrackingNumber}
+                onChange={(e) => setTrackonTrackingNumber(e.target.value)}
+                className="bg-secondary border-border font-mono"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-foreground">
+                Tracking URL{" "}
+                <span className="text-muted-foreground font-normal">(optional)</span>
+              </Label>
+              <Input
+                placeholder="https://trackon.in/track/..."
+                value={trackonTrackingUrl}
+                onChange={(e) => setTrackonTrackingUrl(e.target.value)}
+                className="bg-secondary border-border"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setTrackonDialogOpen(false)}
+              className="border-border"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleShipViaTrackon}
+              disabled={shippingViaTrackon}
+              className="gap-2"
+            >
+              {shippingViaTrackon && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              <Truck className="h-4 w-4" />
+              Ship via TrackOn
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Self Delivery Dialog */}
+      <Dialog open={selfDeliveryDialogOpen} onOpenChange={setSelfDeliveryDialogOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Self Delivery</DialogTitle>
+            <DialogDescription>
+              Mark this order for self delivery by V&P Computer Shop. No
+              external courier will be assigned.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <p className="text-sm text-muted-foreground">
+              Order{" "}
+              <span className="font-mono text-foreground">{order.orderNumber}</span>{" "}
+              will be marked as shipped and delivered by your team directly.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setSelfDeliveryDialogOpen(false)}
+              className="border-border"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSelfDelivery}
+              disabled={shippingViaSelf}
+              className="gap-2"
+            >
+              {shippingViaSelf && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              <Package className="h-4 w-4" />
+              Confirm Self Delivery
             </Button>
           </DialogFooter>
         </DialogContent>

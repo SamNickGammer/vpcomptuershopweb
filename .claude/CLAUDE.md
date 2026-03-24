@@ -14,6 +14,7 @@
 - `.claude/05-conventions.md` — coding rules, API format, naming conventions
 - `.claude/06-features.md` — feature status (done/pending) + what to build next
 - `.claude/07-deployment.md` — vercel deployment, build commands, env setup
+- `.claude/08-shipment.md` — shipment tracking system logic
 
 ---
 
