@@ -123,9 +123,9 @@ export async function POST(request: NextRequest) {
         billingEmail: order.customerEmail,
         billingPhone: order.customerPhone || "",
         shippingIsBilling: true,
-        items: items.map((item) => ({
+        items: items.map((item, idx) => ({
           name: item.productName,
-          sku: item.productId || "DEFAULT",
+          sku: `${(item.variantId || item.productId || "ITEM").slice(0, 20)}-${idx + 1}`,
           units: item.quantity,
           sellingPrice: item.unitPrice / 100, // Convert paise to rupees
         })),
