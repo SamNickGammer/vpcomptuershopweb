@@ -50,6 +50,7 @@ export const orders = pgTable("orders", {
   razorpayOrderId: varchar("razorpay_order_id", { length: 100 }),
   subtotalAmount: integer("subtotal_amount").notNull().default(0),
   discountAmount: integer("discount_amount").notNull().default(0),
+  shippingAmount: integer("shipping_amount").notNull().default(0),
   totalAmount: integer("total_amount").notNull(),
   couponCode: varchar("coupon_code", { length: 50 }),
   notes: text("notes"),

@@ -269,8 +269,25 @@ export default function OrderDetailPage({
   const [shiprocketLength, setShiprocketLength] = useState("20");
   const [shiprocketBreadth, setShiprocketBreadth] = useState("15");
   const [shiprocketHeight, setShiprocketHeight] = useState("10");
-  const [shiprocketPickup, setShiprocketPickup] = useState("Primary");
+  const [shiprocketPickup, setShiprocketPickup] = useState("Home");
   const [shippingViaSR, setShippingViaSR] = useState(false);
+
+  // Courier selection state
+  type CourierOption = {
+    courierId: number;
+    courierName: string;
+    totalRate: number;
+    freightCharge: number;
+    codCharges: number;
+    rtoCharges: number;
+    etd: string;
+    estimatedDays: number;
+    rating: number;
+  };
+  const [courierOptions, setCourierOptions] = useState<CourierOption[]>([]);
+  const [selectedCourier, setSelectedCourier] = useState<CourierOption | null>(null);
+  const [checkingRates, setCheckingRates] = useState(false);
+  const [ratesChecked, setRatesChecked] = useState(false);
 
   // TrackOn shipping state
   const [trackonDialogOpen, setTrackonDialogOpen] = useState(false);
@@ -521,6 +538,31 @@ export default function OrderDetailPage({
     }
   };
 
+  const handleCheckRates = async () => {
+    if (!order) return;
+    setCheckingRates(true);
+    setCourierOptions([]);
+    setSelectedCourier(null);
+    setRatesChecked(false);
+    try {
+      const res = await fetch(
+        `/api/admin/shipping/rates?orderId=${order.id}&weight=${parseFloat(shiprocketWeight) || 0.5}`
+      );
+      const json = await res.json();
+      if (json.success && json.data.available) {
+        setCourierOptions(json.data.couriers);
+        if (json.data.couriers.length > 0) setSelectedCourier(json.data.couriers[0]);
+        setRatesChecked(true);
+      } else {
+        toast.error(json.data?.message || json.error || "No couriers available");
+      }
+    } catch {
+      toast.error("Failed to check shipping rates");
+    } finally {
+      setCheckingRates(false);
+    }
+  };
+
   const handleShipViaShiprocket = async () => {
     if (!order) return;
     setShippingViaSR(true);
@@ -535,7 +577,9 @@ export default function OrderDetailPage({
           length: parseFloat(shiprocketLength) || 20,
           breadth: parseFloat(shiprocketBreadth) || 15,
           height: parseFloat(shiprocketHeight) || 10,
-          pickupLocation: shiprocketPickup || "Primary",
+          pickupLocation: shiprocketPickup || "Home",
+          courierId: selectedCourier?.courierId,
+          shippingCharge: selectedCourier ? selectedCourier.totalRate * 100 : 0, // convert rupees to paise
         }),
       });
       const json = await res.json();
@@ -1654,32 +1698,83 @@ export default function OrderDetailPage({
               <Input
                 value={shiprocketPickup}
                 onChange={(e) => setShiprocketPickup(e.target.value)}
-                placeholder="Primary"
+                placeholder="Home"
                 className="bg-secondary border-border"
               />
-              <p className="text-xs text-muted-foreground">
-                Must match a pickup location name configured in your Shiprocket account.
-              </p>
             </div>
+
+            {/* Step 1: Check Rates */}
+            {!ratesChecked && (
+              <Button
+                onClick={handleCheckRates}
+                disabled={checkingRates}
+                variant="outline"
+                className="w-full gap-2 border-border"
+              >
+                {checkingRates ? <Loader2 className="h-4 w-4 animate-spin" /> : <IndianRupee className="h-4 w-4" />}
+                Check Courier Rates
+              </Button>
+            )}
+
+            {/* Step 2: Courier Selection */}
+            {ratesChecked && courierOptions.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-foreground">Select Courier</Label>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {courierOptions.map((c) => (
+                    <button
+                      key={c.courierId}
+                      type="button"
+                      onClick={() => setSelectedCourier(c)}
+                      className={cn(
+                        "w-full flex items-center justify-between p-3 rounded-lg border text-left transition-colors",
+                        selectedCourier?.courierId === c.courierId
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:bg-secondary/50"
+                      )}
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{c.courierName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Est. {c.estimatedDays} days • {c.etd}
+                          {c.codCharges > 0 && ` • COD: ₹${c.codCharges}`}
+                          {c.rtoCharges > 0 && ` • RTO: ₹${c.rtoCharges}`}
+                        </p>
+                      </div>
+                      <span className="text-sm font-bold text-foreground whitespace-nowrap">₹{c.totalRate}</span>
+                    </button>
+                  ))}
+                </div>
+                {selectedCourier && (
+                  <p className="text-xs text-muted-foreground">
+                    Shipping charge ₹{selectedCourier.totalRate} will be added to the order total.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {ratesChecked && courierOptions.length === 0 && (
+              <p className="text-sm text-red-400">No couriers available for this delivery pincode.</p>
+            )}
           </div>
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setShiprocketDialogOpen(false)}
+              onClick={() => { setShiprocketDialogOpen(false); setRatesChecked(false); setCourierOptions([]); setSelectedCourier(null); }}
               className="border-border"
             >
               Cancel
             </Button>
             <Button
               onClick={handleShipViaShiprocket}
-              disabled={shippingViaSR}
+              disabled={shippingViaSR || !ratesChecked || !selectedCourier}
               className="gap-2"
             >
               {shippingViaSR && (
                 <Loader2 className="h-4 w-4 animate-spin" />
               )}
               <Truck className="h-4 w-4" />
-              Ship Order
+              Ship via {selectedCourier?.courierName || "Shiprocket"} (₹{selectedCourier?.totalRate || 0})
             </Button>
           </DialogFooter>
         </DialogContent>

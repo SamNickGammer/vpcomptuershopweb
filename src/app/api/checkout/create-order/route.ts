@@ -6,7 +6,7 @@ import { inventoryHistory } from "@/lib/db/schema/inventory";
 import { trackingEvents } from "@/lib/db/schema/tracking";
 import { coupons } from "@/lib/db/schema/coupons";
 import { transactions } from "@/lib/db/schema/transactions";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, inArray } from "drizzle-orm";
 import { getCustomerFromCookie } from "@/lib/auth/customer";
 import { generateInternalTrackingCode } from "@/lib/utils/tracking";
 import { razorpay } from "@/lib/razorpay";
@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
       productRows = await db
         .select()
         .from(products)
-        .where(sql`${products.id} IN ${productIds}`);
+        .where(inArray(products.id, productIds));
     } else {
       productRows = await db
         .select()

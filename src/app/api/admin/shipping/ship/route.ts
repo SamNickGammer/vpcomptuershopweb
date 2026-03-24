@@ -13,7 +13,9 @@ const shipOrderSchema = z.object({
   length: z.number().positive().optional().default(20),
   breadth: z.number().positive().optional().default(15),
   height: z.number().positive().optional().default(10),
-  pickupLocation: z.string().optional().default("Primary"),
+  pickupLocation: z.string().optional().default("Home"),
+  courierId: z.number().optional(), // Shiprocket courier ID from rate check
+  shippingCharge: z.number().optional().default(0), // shipping cost in paise
   trackingNumber: z.string().optional(),
   trackingUrl: z.string().optional(),
 });
@@ -154,7 +156,7 @@ export async function POST(request: NextRequest) {
       let shiprocketTrackingUrl = "";
 
       if (shiprocketShipmentId) {
-        const awbResult = await shiprocket.assignAWB(shiprocketShipmentId);
+        const awbResult = await shiprocket.assignAWB(shiprocketShipmentId, parsed.data.courierId);
 
         if (awbResult.response?.data?.awb_code) {
           awb = awbResult.response.data.awb_code;
@@ -190,6 +192,8 @@ export async function POST(request: NextRequest) {
           .update(orders)
           .set({
             status: awb ? "shipped" : "ready_to_ship",
+            shippingAmount: parsed.data.shippingCharge || 0,
+            totalAmount: order.subtotalAmount - order.discountAmount + (parsed.data.shippingCharge || 0),
             updatedAt: new Date(),
           })
           .where(eq(orders.id, orderId));
