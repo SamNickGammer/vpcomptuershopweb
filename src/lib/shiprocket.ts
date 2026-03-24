@@ -87,6 +87,7 @@ class ShiprocketService {
       billing_city: params.billingCity,
       billing_state: params.billingState,
       billing_pincode: params.billingPincode,
+      billing_country: "India",
       billing_email: params.billingEmail,
       billing_phone: params.billingPhone,
       shipping_is_billing: params.shippingIsBilling,
