@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
         estimatedDays: quote.estimatedDays,
         courierName: quote.courierName,
         courierId: quote.courierId,
+        freeShippingApplied: Boolean(quote.freeShippingApplied),
         chargeableWeightGrams: quote.chargeableWeightGrams,
         packageWeightGrams: quote.packageWeightGrams,
         packageDimensions: quote.packageDimensions,

@@ -2,6 +2,7 @@ import { inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { products } from "@/lib/db/schema";
 import { shiprocket } from "@/lib/shiprocket";
+import { resolveBulkPricing } from "@/lib/pricing";
 import type {
   OrderShippingQuote,
   ProductShippingDimensions,
@@ -138,12 +139,16 @@ export function buildQuoteFromPackage(params: {
   packageDimensions: ProductShippingDimensions;
   fallbackApplied?: boolean;
   couriers: CourierRate[];
+  freeShippingApplied?: boolean;
 }): OrderShippingQuote {
   const chargeableWeightGrams = Math.max(
     params.packageWeightGrams,
     volumetricWeightGrams(params.packageDimensions)
   );
   const cheapestCourier = params.couriers[0] || null;
+  const shippingAmount = params.freeShippingApplied
+    ? 0
+    : cheapestCourier?.shippingAmount || 0;
 
   return {
     available: Boolean(cheapestCourier),
@@ -154,12 +159,13 @@ export function buildQuoteFromPackage(params: {
     packageWeightGrams: params.packageWeightGrams,
     chargeableWeightGrams,
     packageDimensions: params.packageDimensions,
-    shippingAmount: cheapestCourier?.shippingAmount || 0,
+    shippingAmount,
     estimatedDays: cheapestCourier?.estimatedDays ?? null,
     courierId: cheapestCourier?.courierId || null,
     courierName: cheapestCourier?.courierName || null,
     freightCharge: cheapestCourier?.freightCharge || 0,
     codCharge: cheapestCourier?.codCharge || 0,
+    freeShippingApplied: Boolean(params.freeShippingApplied),
     fallbackApplied: Boolean(params.fallbackApplied),
   };
 }
@@ -184,6 +190,7 @@ export async function quoteShippingForItems(params: {
 
   const productMap = new Map(productRows.map((product) => [product.id, product]));
   let fallbackApplied = false;
+  let freeShippingApplied = false;
   let packageWeightGrams = 0;
   const packageUnits: Array<{
     dimensions: ProductShippingDimensions;
@@ -195,6 +202,18 @@ export async function quoteShippingForItems(params: {
     const product = productMap.get(normalizedId);
     if (!product) {
       throw new Error(`Product not found for shipping quote: ${normalizedId}`);
+    }
+
+    const selectedVariant = item.variantId
+      ? (product.variants ?? []).find((variant) => variant.variantId === item.variantId)
+      : null;
+    const pricing = resolveBulkPricing({
+      basePrice: selectedVariant?.price ?? product.basePrice,
+      quantity: item.quantity,
+      bulkPricing: selectedVariant?.bulkPricing ?? product.bulkPricing,
+    });
+    if (pricing.appliedFreeShipping) {
+      freeShippingApplied = true;
     }
 
     const rawWeight = Number(product.shippingWeightGrams || 0);
@@ -255,11 +274,13 @@ export async function quoteShippingForItems(params: {
       packageDimensions,
       fallbackApplied,
       couriers,
+      freeShippingApplied,
     }),
     couriers,
     packageDimensions,
     packageWeightGrams,
     chargeableWeightGrams,
+    freeShippingApplied,
     fallbackApplied,
   };
 }

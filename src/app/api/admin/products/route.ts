@@ -5,6 +5,14 @@ import { db } from "@/lib/db";
 import { products, categories } from "@/lib/db/schema";
 import { getAdminFromCookie } from "@/lib/auth/admin";
 import { slugify } from "@/lib/utils/helpers";
+import { normalizeBulkPricingTiers } from "@/lib/pricing";
+
+const bulkPricingTierSchema = z.object({
+  minQuantity: z.number().int().min(2),
+  unitPrice: z.number().int().min(0),
+  freeShipping: z.boolean().optional().default(false),
+  label: z.string().max(120).optional().default(""),
+});
 
 const variantSchema = z.object({
   variantId: z.string().min(1),
@@ -23,6 +31,7 @@ const variantSchema = z.object({
     .array(z.object({ key: z.string().min(1), value: z.string().min(1) }))
     .optional()
     .default([]),
+  bulkPricing: z.array(bulkPricingTierSchema).optional().default([]),
   stock: z.number().int().min(0).default(0),
   isDefault: z.boolean().optional().default(false),
   isActive: z.boolean().optional().default(true),
@@ -44,6 +53,7 @@ const createProductSchema = z.object({
     .array(z.object({ key: z.string().min(1), value: z.string().min(1) }))
     .optional()
     .default([]),
+  bulkPricing: z.array(bulkPricingTierSchema).optional().default([]),
   shippingWeightGrams: z.number().int().min(0).default(0),
   shippingDimensions: z
     .object({
@@ -216,6 +226,7 @@ export async function POST(request: NextRequest) {
       compareAtPrice,
       images,
       specs,
+      bulkPricing,
       shippingWeightGrams,
       shippingDimensions,
       stock,
@@ -241,6 +252,7 @@ export async function POST(request: NextRequest) {
     const processedVariants = variants.map((v) => ({
       ...v,
       displayName: v.displayName || `${name} ${v.name}`.trim(),
+      bulkPricing: normalizeBulkPricingTiers(v.bulkPricing),
     }));
 
     const [product] = await db
@@ -256,6 +268,7 @@ export async function POST(request: NextRequest) {
         compareAtPrice: compareAtPrice ?? null,
         images,
         specs,
+        bulkPricing: normalizeBulkPricingTiers(bulkPricing),
         shippingWeightGrams,
         shippingDimensions,
         stock,

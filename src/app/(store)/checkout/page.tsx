@@ -51,6 +51,7 @@ type ShippingQuoteResult = {
   estimatedDays: number | null;
   courierName: string | null;
   courierId: number | null;
+  freeShippingApplied?: boolean;
   chargeableWeightGrams: number;
   packageWeightGrams: number;
   packageDimensions: {
@@ -977,7 +978,7 @@ export default function CheckoutPage() {
                       Calculating
                     </span>
                   ) : shippingQuote ? (
-                    formatPrice(shippingAmount)
+                    shippingQuote.freeShippingApplied ? "Free" : formatPrice(shippingAmount)
                   ) : (
                     "Enter pincode"
                   )}
@@ -1000,6 +1001,11 @@ export default function CheckoutPage() {
                     {" "}
                     {shippingQuote.packageDimensions.lengthCm} x {shippingQuote.packageDimensions.breadthCm} x {shippingQuote.packageDimensions.heightCm} cm
                   </p>
+                  {shippingQuote.freeShippingApplied && (
+                    <p className="mt-1 font-medium text-emerald-600">
+                      Free shipping unlocked by bulk quantity.
+                    </p>
+                  )}
                 </div>
               )}
               {shippingError && (

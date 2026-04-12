@@ -45,6 +45,7 @@ export type OrderShippingQuote = {
   courierName: string | null;
   freightCharge: number;
   codCharge: number;
+  freeShippingApplied?: boolean;
   fallbackApplied: boolean;
 };
 

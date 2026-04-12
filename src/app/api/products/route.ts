@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { products, categories } from "@/lib/db/schema";
 import { eq, and, or, ilike, sql, desc, inArray } from "drizzle-orm";
 import type { ProductVariantData } from "@/lib/db/schema/products";
+import { getBulkPricingPreview } from "@/lib/pricing";
 
 // A single storefront listing — one per variant (or one per product if no variants)
 type ProductListing = {
@@ -22,6 +23,13 @@ type ProductListing = {
   label: string | null;
   isFeatured: boolean;
   createdAt: Date;
+  bulkPricing: ProductVariantData["bulkPricing"] | null;
+  bulkPricingPreview?: {
+    minQuantity: number;
+    unitPrice: number;
+    freeShipping?: boolean;
+    label?: string;
+  } | null;
 };
 
 export async function GET(request: NextRequest) {
@@ -119,6 +127,8 @@ export async function GET(request: NextRequest) {
             label: v.label || null,
             isFeatured: p.isFeatured,
             createdAt: p.createdAt,
+            bulkPricing: v.bulkPricing ?? [],
+            bulkPricingPreview: getBulkPricingPreview(v.bulkPricing),
           });
         }
       } else {
@@ -143,6 +153,8 @@ export async function GET(request: NextRequest) {
           label: null,
           isFeatured: p.isFeatured,
           createdAt: p.createdAt,
+          bulkPricing: p.bulkPricing ?? [],
+          bulkPricingPreview: getBulkPricingPreview(p.bulkPricing),
         });
       }
     }

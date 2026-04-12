@@ -8,6 +8,7 @@ import React, {
   useCallback,
 } from "react";
 import { useAuth } from "./useAuth";
+import type { BulkPricingTier } from "@/lib/pricing";
 
 export type WishlistItem = {
   id: string;
@@ -19,6 +20,7 @@ export type WishlistItem = {
     images: Array<{ url: string; altText?: string }>;
     basePrice: number;
     compareAtPrice: number | null;
+    bulkPricing?: BulkPricingTier[];
     stock: number;
     condition: string;
     variants?: Array<{
@@ -27,6 +29,7 @@ export type WishlistItem = {
       displayName: string;
       price: number;
       compareAtPrice?: number | null;
+      bulkPricing?: BulkPricingTier[];
       images: Array<{ url: string; altText?: string }>;
       stock: number;
     }>;

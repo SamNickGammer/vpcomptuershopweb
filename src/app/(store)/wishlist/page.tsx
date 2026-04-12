@@ -58,10 +58,12 @@ function WishlistCard({ item }: { item: WishlistItem }) {
       productName: name,
       productSlug: product.slug,
       variantName: variant?.name || "Default",
+      basePrice: price,
       price,
       compareAtPrice,
       image: image?.url ?? null,
       quantity: 1,
+      bulkPricing: variant?.bulkPricing || product.bulkPricing || [],
     });
   }
 

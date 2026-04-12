@@ -27,6 +27,7 @@ export async function GET() {
           images: products.images,
           basePrice: products.basePrice,
           compareAtPrice: products.compareAtPrice,
+          bulkPricing: products.bulkPricing,
           stock: products.stock,
           condition: products.condition,
           variants: products.variants,
