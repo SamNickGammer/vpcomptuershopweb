@@ -10,6 +10,8 @@ import { eq, sql, inArray } from "drizzle-orm";
 import { getCustomerFromCookie } from "@/lib/auth/customer";
 import { generateInternalTrackingCode } from "@/lib/utils/tracking";
 import { razorpay } from "@/lib/razorpay";
+import { resolveBulkPricing } from "@/lib/pricing";
+import { quoteShippingForItems } from "@/lib/shipping";
 
 type OrderItemInput = {
   productId: string;
@@ -153,23 +155,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Calculate subtotal from DB prices (server-side for security)
-    let subtotalAmount = 0;
-    for (const item of body.items) {
+    const resolvedUnitPrices = body.items.map((item) => {
       const product = productMap.get(item.productId)!;
-      let price = product.basePrice;
-      if (item.variantId) {
-        const variantsArr = (product.variants ?? []) as Array<{
-          variantId: string;
-          price: number;
-        }>;
-        const variant = variantsArr.find((v) => v.variantId === item.variantId);
-        if (variant) {
-          price = variant.price;
-        }
-      }
-      subtotalAmount += price * item.quantity;
-    }
+      const variant = item.variantId
+        ? (product.variants ?? []).find((entry) => entry.variantId === item.variantId)
+        : undefined;
+
+      return resolveBulkPricing({
+        basePrice: variant?.price ?? product.basePrice,
+        quantity: item.quantity,
+        bulkPricing: variant?.bulkPricing ?? product.bulkPricing,
+      }).unitPrice;
+    });
+
+    const subtotalAmount = body.items.reduce(
+      (sum, item, index) => sum + resolvedUnitPrices[index] * item.quantity,
+      0
+    );
 
     // Apply coupon if provided
     let discountAmount = 0;
@@ -220,22 +222,33 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const totalAmount = subtotalAmount - discountAmount;
+    const shippingResult = await quoteShippingForItems({
+      items: body.items.map((item) => ({
+        productId: item.productId,
+        variantId: item.variantId,
+        quantity: item.quantity,
+      })),
+      deliveryPincode: body.shippingAddress.pincode,
+      isCod: body.paymentMethod === "cod",
+    });
+
+    if (!shippingResult.quote.available) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Shipping is not available for this pincode right now.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const shippingAmount = shippingResult.quote.shippingAmount;
+    const totalAmount = subtotalAmount - discountAmount + shippingAmount;
     const orderNumber = generateOrderNumber();
     const trackingCode = generateInternalTrackingCode();
 
     // Build order item values
-    const orderItemValues = body.items.map((item) => {
-      const product = productMap.get(item.productId)!;
-      let price = product.basePrice;
-      if (item.variantId) {
-        const variantsArr = (product.variants ?? []) as Array<{
-          variantId: string;
-          price: number;
-        }>;
-        const variant = variantsArr.find((v) => v.variantId === item.variantId);
-        if (variant) price = variant.price;
-      }
+    const orderItemValues = body.items.map((item, index) => {
       return {
         orderId: "", // will be set after order creation
         productId: item.productId,
@@ -243,7 +256,7 @@ export async function POST(req: NextRequest) {
         productName: item.productName,
         variantName: item.variantName || null,
         quantity: item.quantity,
-        unitPrice: price,
+        unitPrice: resolvedUnitPrices[index],
       };
     });
 
@@ -263,6 +276,8 @@ export async function POST(req: NextRequest) {
           paymentMethod: "cod",
           subtotalAmount,
           discountAmount,
+          shippingAmount,
+          shippingQuote: shippingResult.quote,
           totalAmount,
           couponCode: couponCodeUsed || null,
         })
@@ -319,6 +334,8 @@ export async function POST(req: NextRequest) {
           orderNumber,
           orderId,
           paymentMethod: "cod" as const,
+          shippingAmount,
+          totalAmount,
         },
       });
     }
@@ -351,6 +368,8 @@ export async function POST(req: NextRequest) {
         razorpayOrderId: razorpayOrder.id,
         subtotalAmount,
         discountAmount,
+        shippingAmount,
+        shippingQuote: shippingResult.quote,
         totalAmount,
         couponCode: couponCodeUsed || null,
       })
@@ -384,6 +403,7 @@ export async function POST(req: NextRequest) {
         paymentMethod: "online" as const,
         razorpayOrderId: razorpayOrder.id,
         razorpayKeyId: process.env.LIVE_KEY_ID,
+        shippingAmount,
         amount: totalAmount,
         currency: "INR",
         customerName: body.customerName,

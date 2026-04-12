@@ -19,6 +19,7 @@ import {
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import { cn, formatPrice } from "@/lib/utils/helpers";
+import type { BulkPricingTier } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +63,8 @@ type ProductListItem = {
   inStock: boolean;
   label: string | null;
   isFeatured: boolean;
+  bulkPricing?: BulkPricingTier[] | null;
+  bulkPricingPreview?: BulkPricingTier | null;
 };
 
 type Pagination = {
@@ -153,10 +156,12 @@ function ProductCard({ product }: { product: ProductListItem }) {
       productName: product.name,
       productSlug: product.slug,
       variantName: product.label || "Default",
+      basePrice: product.price,
       price: product.price,
       compareAtPrice: product.compareAtPrice,
       image: product.image?.url ?? null,
       quantity: 1,
+      bulkPricing: product.bulkPricing || [],
     });
   }
 
@@ -253,6 +258,11 @@ function ProductCard({ product }: { product: ProductListItem }) {
                 {product.inStock ? "In Stock" : "Out of Stock"}
               </span>
             </div>
+            {product.bulkPricingPreview && (
+              <div className="mt-1 text-[10px] font-medium text-amber-700">
+                Bulk from {product.bulkPricingPreview.minQuantity}+ pcs
+              </div>
+            )}
           </div>
           {product.inStock && (
             <button

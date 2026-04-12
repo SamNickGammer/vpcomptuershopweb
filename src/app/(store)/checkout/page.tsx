@@ -45,6 +45,22 @@ type CouponResult = {
   error?: string;
 };
 
+type ShippingQuoteResult = {
+  available: boolean;
+  shippingAmount: number;
+  estimatedDays: number | null;
+  courierName: string | null;
+  courierId: number | null;
+  freeShippingApplied?: boolean;
+  chargeableWeightGrams: number;
+  packageWeightGrams: number;
+  packageDimensions: {
+    lengthCm: number;
+    breadthCm: number;
+    heightCm: number;
+  };
+};
+
 export default function CheckoutPage() {
   const router = useRouter();
   const { user, loading: authLoading, openAuthModal } = useAuth();
@@ -73,6 +89,9 @@ export default function CheckoutPage() {
   const [couponCode, setCouponCode] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<CouponResult | null>(null);
+  const [shippingQuote, setShippingQuote] = useState<ShippingQuoteResult | null>(null);
+  const [shippingLoading, setShippingLoading] = useState(false);
+  const [shippingError, setShippingError] = useState("");
 
   // Order
   const [placing, setPlacing] = useState(false);
@@ -140,8 +159,71 @@ export default function CheckoutPage() {
     }
   }, [authLoading, user, openAuthModal]);
 
+  useEffect(() => {
+    if (!/^\d{6}$/.test(pincode.trim()) || items.length === 0) {
+      setShippingQuote(null);
+      setShippingError("");
+      setShippingLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function fetchShippingQuote() {
+      setShippingLoading(true);
+      setShippingError("");
+
+      try {
+        const res = await fetch("/api/checkout/shipping-rates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deliveryPincode: pincode.trim(),
+            paymentMethod,
+            items: items.map((item) => ({
+              productId: item.productId,
+              variantId: item.variantId,
+              quantity: item.quantity,
+            })),
+          }),
+        });
+        const data = await res.json();
+
+        if (cancelled) return;
+
+        if (res.ok && data.success && data.data?.available) {
+          setShippingQuote(data.data);
+          setShippingError("");
+        } else {
+          setShippingQuote(null);
+          setShippingError(
+            data.error ||
+              data.data?.message ||
+              "Shipping is not available for this pincode."
+          );
+        }
+      } catch {
+        if (!cancelled) {
+          setShippingQuote(null);
+          setShippingError("Could not calculate shipping right now.");
+        }
+      } finally {
+        if (!cancelled) {
+          setShippingLoading(false);
+        }
+      }
+    }
+
+    fetchShippingQuote();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [items, paymentMethod, pincode]);
+
   const discount = appliedCoupon?.valid ? appliedCoupon.discount : 0;
-  const finalTotal = totalPrice - discount;
+  const shippingAmount = shippingQuote?.shippingAmount || 0;
+  const finalTotal = totalPrice - discount + shippingAmount;
 
   async function handleApplyCoupon() {
     if (!couponCode.trim()) {
@@ -226,6 +308,14 @@ export default function CheckoutPage() {
     }
     if (!/\S+@\S+\.\S+/.test(email.trim())) {
       toast.error("Please enter a valid email address");
+      return;
+    }
+    if (shippingLoading) {
+      toast.error("Shipping charges are still being calculated");
+      return;
+    }
+    if (!shippingQuote?.available) {
+      toast.error(shippingError || "Shipping is not available for this pincode");
       return;
     }
 
@@ -881,12 +971,46 @@ export default function CheckoutPage() {
                 <span className="text-gray-500 flex items-center gap-1">
                   <Truck className="h-3.5 w-3.5" /> Shipping
                 </span>
-                <span className="text-green-600 font-medium">Free</span>
+                <span className="font-medium text-gray-900">
+                  {shippingLoading ? (
+                    <span className="inline-flex items-center gap-1.5 text-gray-500">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Calculating
+                    </span>
+                  ) : shippingQuote ? (
+                    shippingQuote.freeShippingApplied ? "Free" : formatPrice(shippingAmount)
+                  ) : (
+                    "Enter pincode"
+                  )}
+                </span>
               </div>
               {discount > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-green-600">Discount</span>
                   <span className="text-green-600">-{formatPrice(discount)}</span>
+                </div>
+              )}
+              {shippingQuote?.courierName && (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500">
+                  <p>
+                    Estimated via <span className="font-medium text-gray-900">{shippingQuote.courierName}</span>
+                    {shippingQuote.estimatedDays ? ` in ${shippingQuote.estimatedDays} day${shippingQuote.estimatedDays === 1 ? "" : "s"}` : ""}
+                  </p>
+                  <p className="mt-1">
+                    Package: {(shippingQuote.packageWeightGrams / 1000).toFixed(2)} kg,
+                    {" "}
+                    {shippingQuote.packageDimensions.lengthCm} x {shippingQuote.packageDimensions.breadthCm} x {shippingQuote.packageDimensions.heightCm} cm
+                  </p>
+                  {shippingQuote.freeShippingApplied && (
+                    <p className="mt-1 font-medium text-emerald-600">
+                      Free shipping unlocked by bulk quantity.
+                    </p>
+                  )}
+                </div>
+              )}
+              {shippingError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
+                  {shippingError}
                 </div>
               )}
               <div className="border-t border-gray-200 pt-3 flex justify-between">
@@ -898,7 +1022,11 @@ export default function CheckoutPage() {
             {/* Place Order Button */}
             <button
               onClick={handlePlaceOrder}
-              disabled={placing}
+              disabled={
+                placing ||
+                shippingLoading ||
+                Boolean(pincode.trim()) && pincode.trim().length === 6 && !shippingQuote
+              }
               className="w-full mt-6 py-4 bg-[#d97706] text-white rounded-xl font-semibold text-lg hover:bg-[#b45309] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {placing ? (

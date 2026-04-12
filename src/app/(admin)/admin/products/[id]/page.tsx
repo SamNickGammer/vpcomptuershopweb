@@ -67,6 +67,14 @@ type SpecEntry = {
   value: string;
 };
 
+type BulkPricingTierEntry = {
+  id: string;
+  minQuantity: string;
+  unitPrice: string;
+  freeShipping: boolean;
+  label: string;
+};
+
 type VariantEntry = {
   id: string;
   name: string;
@@ -79,6 +87,7 @@ type VariantEntry = {
   stock: string;
   images: ImageEntry[];
   specs: SpecEntry[];
+  bulkPricing: BulkPricingTierEntry[];
   isActive: boolean;
   isDefault: boolean;
 };
@@ -124,6 +133,7 @@ function makeDefaultVariant(): VariantEntry {
     stock: "0",
     images: [],
     specs: [],
+    bulkPricing: [],
     isActive: true,
     isDefault: true,
   };
@@ -152,6 +162,10 @@ export default function EditProductPage({
   const [condition, setCondition] = useState<string>("new");
   const [isFeatured, setIsFeatured] = useState(false);
   const [isActive, setIsActive] = useState(true);
+  const [shippingWeightGrams, setShippingWeightGrams] = useState("0");
+  const [shippingLengthCm, setShippingLengthCm] = useState("0");
+  const [shippingBreadthCm, setShippingBreadthCm] = useState("0");
+  const [shippingHeightCm, setShippingHeightCm] = useState("0");
 
   // Variants
   const [variants, setVariants] = useState<VariantEntry[]>([]);
@@ -222,6 +236,10 @@ export default function EditProductPage({
         setCondition(p.condition);
         setIsFeatured(p.isFeatured);
         setIsActive(p.isActive);
+        setShippingWeightGrams(String(p.shippingWeightGrams || 0));
+        setShippingLengthCm(String(p.shippingDimensions?.lengthCm || 0));
+        setShippingBreadthCm(String(p.shippingDimensions?.breadthCm || 0));
+        setShippingHeightCm(String(p.shippingDimensions?.heightCm || 0));
 
         // Variants
         const loadedVariants: VariantEntry[] = (p.variants || []).map(
@@ -236,6 +254,12 @@ export default function EditProductPage({
             compareAtPrice?: number | null;
             images: Array<{ url: string; altText?: string }>;
             specs: Array<{ key: string; value: string }>;
+            bulkPricing?: Array<{
+              minQuantity: number;
+              unitPrice: number;
+              freeShipping?: boolean;
+              label?: string;
+            }>;
             stock: number;
             isDefault?: boolean;
             isActive?: boolean;
@@ -265,6 +289,20 @@ export default function EditProductPage({
                 value: s.value,
               })
             ),
+            bulkPricing: (v.bulkPricing || []).map(
+              (tier: {
+                minQuantity: number;
+                unitPrice: number;
+                freeShipping?: boolean;
+                label?: string;
+              }) => ({
+                id: generateId(),
+                minQuantity: String(tier.minQuantity),
+                unitPrice: String(tier.unitPrice / 100),
+                freeShipping: tier.freeShipping ?? false,
+                label: tier.label || "",
+              })
+            ),
             isActive: v.isActive ?? true,
             isDefault: v.isDefault ?? false,
           })
@@ -292,6 +330,20 @@ export default function EditProductPage({
               id: generateId(),
               key: s.key,
               value: s.value,
+            })
+          );
+          defaultVariant.bulkPricing = (p.bulkPricing || []).map(
+            (tier: {
+              minQuantity: number;
+              unitPrice: number;
+              freeShipping?: boolean;
+              label?: string;
+            }) => ({
+              id: generateId(),
+              minQuantity: String(tier.minQuantity),
+              unitPrice: String(tier.unitPrice / 100),
+              freeShipping: tier.freeShipping ?? false,
+              label: tier.label || "",
             })
           );
           loadedVariants.push(defaultVariant);
@@ -355,6 +407,7 @@ export default function EditProductPage({
       stock: "0",
       images: [],
       specs: [],
+      bulkPricing: [],
       isActive: true,
       isDefault: false,
     };
@@ -539,6 +592,61 @@ export default function EditProductPage({
     );
   };
 
+  const handleAddBulkPricingTier = (variantId: string) => {
+    setVariants((prev) =>
+      prev.map((v) =>
+        v.id === variantId
+          ? {
+              ...v,
+              bulkPricing: [
+                ...v.bulkPricing,
+                {
+                  id: generateId(),
+                  minQuantity: "",
+                  unitPrice: "",
+                  freeShipping: false,
+                  label: "",
+                },
+              ],
+            }
+          : v
+      )
+    );
+  };
+
+  const handleRemoveBulkPricingTier = (variantId: string, tierId: string) => {
+    setVariants((prev) =>
+      prev.map((v) =>
+        v.id === variantId
+          ? {
+              ...v,
+              bulkPricing: v.bulkPricing.filter((tier) => tier.id !== tierId),
+            }
+          : v
+      )
+    );
+  };
+
+  const handleBulkPricingTierChange = (
+    variantId: string,
+    tierId: string,
+    field: keyof BulkPricingTierEntry,
+    value: string | boolean
+  ) => {
+    setVariants((prev) =>
+      prev.map((v) =>
+        v.id === variantId
+          ? {
+              ...v,
+              bulkPricing: v.bulkPricing.map((tier) =>
+                tier.id === tierId ? { ...tier, [field]: value } : tier
+              ),
+            }
+          : v
+      )
+    );
+  };
+
   // ── Submit ─────────────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
@@ -584,6 +692,16 @@ export default function EditProductPage({
           return;
         }
       }
+      for (const tier of v.bulkPricing) {
+        if (!tier.minQuantity || Number(tier.minQuantity) < 2) {
+          toast.error(`Variant "${v.name}": bulk tier quantity must be at least 2`);
+          return;
+        }
+        if (!tier.unitPrice || Number(tier.unitPrice) < 0) {
+          toast.error(`Variant "${v.name}": bulk tier price is required`);
+          return;
+        }
+      }
     }
 
     setSubmitting(true);
@@ -607,6 +725,18 @@ export default function EditProductPage({
           key: s.key.trim(),
           value: s.value.trim(),
         })),
+        bulkPricing: defaultVariant.bulkPricing.map((tier) => ({
+          minQuantity: Math.max(2, Math.round(Number(tier.minQuantity) || 0)),
+          unitPrice: Math.max(0, Math.round(Number(tier.unitPrice) * 100)),
+          freeShipping: tier.freeShipping,
+          label: tier.label.trim(),
+        })),
+        shippingWeightGrams: Math.max(0, Math.round(Number(shippingWeightGrams) || 0)),
+        shippingDimensions: {
+          lengthCm: Math.max(0, Math.round(Number(shippingLengthCm) || 0)),
+          breadthCm: Math.max(0, Math.round(Number(shippingBreadthCm) || 0)),
+          heightCm: Math.max(0, Math.round(Number(shippingHeightCm) || 0)),
+        },
         stock: parseInt(defaultVariant.stock) || 0,
         lowStockThreshold: 2,
         variants: variants.map((v) => ({
@@ -627,6 +757,12 @@ export default function EditProductPage({
           specs: v.specs.map((s) => ({
             key: s.key.trim(),
             value: s.value.trim(),
+          })),
+          bulkPricing: v.bulkPricing.map((tier) => ({
+            minQuantity: Math.max(2, Math.round(Number(tier.minQuantity) || 0)),
+            unitPrice: Math.max(0, Math.round(Number(tier.unitPrice) * 100)),
+            freeShipping: tier.freeShipping,
+            label: tier.label.trim(),
           })),
           stock: parseInt(v.stock) || 0,
           isDefault: v.isDefault,
@@ -819,6 +955,71 @@ export default function EditProductPage({
                 <Label htmlFor="active" className="text-foreground cursor-pointer text-sm">
                   Active
                 </Label>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card rounded-xl border-border">
+          <CardHeader className="border-b border-border">
+            <CardTitle className="text-foreground">Shipping Setup</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5 pt-6">
+            <p className="text-sm text-muted-foreground">
+              These values are used during checkout to estimate Shiprocket charges before payment.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="shippingWeightGrams" className="text-foreground">
+                Packed Weight (grams)
+              </Label>
+              <Input
+                id="shippingWeightGrams"
+                type="number"
+                min="0"
+                value={shippingWeightGrams}
+                onChange={(e) => setShippingWeightGrams(e.target.value)}
+                className="bg-secondary border-border rounded-lg"
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="shippingLengthCm" className="text-foreground">
+                  Length (cm)
+                </Label>
+                <Input
+                  id="shippingLengthCm"
+                  type="number"
+                  min="0"
+                  value={shippingLengthCm}
+                  onChange={(e) => setShippingLengthCm(e.target.value)}
+                  className="bg-secondary border-border rounded-lg"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="shippingBreadthCm" className="text-foreground">
+                  Breadth (cm)
+                </Label>
+                <Input
+                  id="shippingBreadthCm"
+                  type="number"
+                  min="0"
+                  value={shippingBreadthCm}
+                  onChange={(e) => setShippingBreadthCm(e.target.value)}
+                  className="bg-secondary border-border rounded-lg"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="shippingHeightCm" className="text-foreground">
+                  Height (cm)
+                </Label>
+                <Input
+                  id="shippingHeightCm"
+                  type="number"
+                  min="0"
+                  value={shippingHeightCm}
+                  onChange={(e) => setShippingHeightCm(e.target.value)}
+                  className="bg-secondary border-border rounded-lg"
+                />
               </div>
             </div>
           </CardContent>
@@ -1137,6 +1338,138 @@ export default function EditProductPage({
                               className="bg-secondary border-border rounded-lg font-mono text-sm"
                             />
                           </div>
+                        </div>
+
+                        <Separator className="bg-border" />
+
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="text-sm font-medium text-foreground">
+                                Bulk Pricing
+                              </h4>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Add quantity-based per-piece pricing and optional free shipping for large orders.
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleAddBulkPricingTier(variant.id)}
+                              className="border-border hover:bg-secondary"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                              Add Tier
+                            </Button>
+                          </div>
+
+                          {variant.bulkPricing.length > 0 ? (
+                            <div className="space-y-3">
+                              {variant.bulkPricing.map((tier) => (
+                                <div
+                                  key={tier.id}
+                                  className="rounded-lg border border-border bg-secondary/40 p-4"
+                                >
+                                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                    <div className="space-y-2">
+                                      <Label className="text-xs text-muted-foreground">
+                                        Minimum Qty
+                                      </Label>
+                                      <Input
+                                        type="number"
+                                        min="2"
+                                        value={tier.minQuantity}
+                                        onChange={(e) =>
+                                          handleBulkPricingTierChange(
+                                            variant.id,
+                                            tier.id,
+                                            "minQuantity",
+                                            e.target.value
+                                          )
+                                        }
+                                        className="bg-secondary border-border rounded-lg font-mono text-sm"
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label className="text-xs text-muted-foreground">
+                                        Unit Price (&#8377;)
+                                      </Label>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        value={tier.unitPrice}
+                                        onChange={(e) =>
+                                          handleBulkPricingTierChange(
+                                            variant.id,
+                                            tier.id,
+                                            "unitPrice",
+                                            e.target.value
+                                          )
+                                        }
+                                        className="bg-secondary border-border rounded-lg font-mono text-sm"
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label className="text-xs text-muted-foreground">
+                                        Label
+                                      </Label>
+                                      <Input
+                                        placeholder="Dealer offer"
+                                        value={tier.label}
+                                        onChange={(e) =>
+                                          handleBulkPricingTierChange(
+                                            variant.id,
+                                            tier.id,
+                                            "label",
+                                            e.target.value
+                                          )
+                                        }
+                                        className="bg-secondary border-border rounded-lg text-sm"
+                                      />
+                                    </div>
+                                    <div className="flex items-end justify-between gap-3">
+                                      <div className="flex items-center gap-2 pb-2">
+                                        <Switch
+                                          checked={tier.freeShipping}
+                                          onCheckedChange={(checked) =>
+                                            handleBulkPricingTierChange(
+                                              variant.id,
+                                              tier.id,
+                                              "freeShipping",
+                                              checked
+                                            )
+                                          }
+                                        />
+                                        <Label className="text-xs text-foreground cursor-pointer">
+                                          Free Shipping
+                                        </Label>
+                                      </div>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-9 w-9 text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
+                                        onClick={() =>
+                                          handleRemoveBulkPricingTier(
+                                            variant.id,
+                                            tier.id
+                                          )
+                                        }
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">
+                              No bulk pricing tiers configured for this variant.
+                            </p>
+                          )}
                         </div>
 
                         <Separator className="bg-border" />

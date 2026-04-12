@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { products, categories } from "@/lib/db/schema";
 import { eq, and, ne, sql, desc } from "drizzle-orm";
 import type { ProductVariantData } from "@/lib/db/schema/products";
+import { getBulkPricingPreview } from "@/lib/pricing";
 
 export async function GET(
   request: Request,
@@ -45,6 +46,7 @@ export async function GET(
       .map((v) => ({
         ...v,
         inStock: v.stock > 0,
+        bulkPricingPreview: getBulkPricingPreview(v.bulkPricing),
       }));
 
     // Determine which variant should be pre-selected
@@ -181,6 +183,7 @@ export async function GET(
         sku: p.sku,
         basePrice: p.basePrice,
         compareAtPrice: p.compareAtPrice,
+        bulkPricing: p.bulkPricing,
         images: p.images,
         specs: p.specs,
         stock: p.stock,

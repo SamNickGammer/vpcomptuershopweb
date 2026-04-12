@@ -8,6 +8,8 @@ import { coupons } from "@/lib/db/schema/coupons";
 import { eq, sql } from "drizzle-orm";
 import { getCustomerFromCookie } from "@/lib/auth/customer";
 import { generateInternalTrackingCode } from "@/lib/utils/tracking";
+import { resolveBulkPricing } from "@/lib/pricing";
+import { quoteShippingForItems } from "@/lib/shipping";
 
 type OrderItemInput = {
   productId: string;
@@ -129,26 +131,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Calculate subtotal from DB prices (use server-side prices for security)
-    let subtotalAmount = 0;
-    for (const item of body.items) {
+    const resolvedUnitPrices = body.items.map((item) => {
       const product = productMap.get(item.productId)!;
+      const variant = item.variantId
+        ? (product.variants ?? []).find((entry) => entry.variantId === item.variantId)
+        : undefined;
 
-      // If a variantId is specified, use the variant price
-      let price = product.basePrice;
-      if (item.variantId) {
-        const variantsArr = (product.variants ?? []) as Array<{
-          variantId: string;
-          price: number;
-        }>;
-        const variant = variantsArr.find((v) => v.variantId === item.variantId);
-        if (variant) {
-          price = variant.price;
-        }
-      }
+      return resolveBulkPricing({
+        basePrice: variant?.price ?? product.basePrice,
+        quantity: item.quantity,
+        bulkPricing: variant?.bulkPricing ?? product.bulkPricing,
+      }).unitPrice;
+    });
 
-      subtotalAmount += price * item.quantity;
-    }
+    const subtotalAmount = body.items.reduce(
+      (sum, item, index) => sum + resolvedUnitPrices[index] * item.quantity,
+      0
+    );
 
     // Apply coupon if provided
     let discountAmount = 0;
@@ -193,7 +192,25 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const totalAmount = subtotalAmount - discountAmount;
+    const shippingResult = await quoteShippingForItems({
+      items: body.items.map((item) => ({
+        productId: item.productId,
+        variantId: item.variantId,
+        quantity: item.quantity,
+      })),
+      deliveryPincode: body.shippingAddress.pincode,
+      isCod: body.paymentMethod === "cod",
+    });
+
+    if (!shippingResult.quote.available) {
+      return NextResponse.json(
+        { error: "Shipping is not available for this pincode right now." },
+        { status: 400 }
+      );
+    }
+
+    const shippingAmount = shippingResult.quote.shippingAmount;
+    const totalAmount = subtotalAmount - discountAmount + shippingAmount;
     const orderNumber = generateOrderNumber();
     const trackingCode = generateInternalTrackingCode();
 
@@ -212,6 +229,8 @@ export async function POST(req: NextRequest) {
         paymentMethod: body.paymentMethod,
         subtotalAmount,
         discountAmount,
+        shippingAmount,
+        shippingQuote: shippingResult.quote,
         totalAmount,
         couponCode: couponCodeUsed || null,
       })
@@ -220,22 +239,7 @@ export async function POST(req: NextRequest) {
     const orderId = newOrder.id;
 
     // Create order items
-    const orderItemValues = body.items.map((item) => {
-      const product = productMap.get(item.productId)!;
-
-      // Determine price from variant or base
-      let price = product.basePrice;
-      if (item.variantId) {
-        const variantsArr = (product.variants ?? []) as Array<{
-          variantId: string;
-          price: number;
-        }>;
-        const variant = variantsArr.find((v) => v.variantId === item.variantId);
-        if (variant) {
-          price = variant.price;
-        }
-      }
-
+    const orderItemValues = body.items.map((item, index) => {
       return {
         orderId,
         productId: item.productId,
@@ -243,7 +247,7 @@ export async function POST(req: NextRequest) {
         productName: item.productName,
         variantName: item.variantName || null,
         quantity: item.quantity,
-        unitPrice: price,
+        unitPrice: resolvedUnitPrices[index],
       };
     });
 

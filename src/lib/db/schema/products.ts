@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { categories } from "./categories";
+import type { BulkPricingTier } from "@/lib/pricing";
 
 export const conditionEnum = pgEnum("condition", [
   "new",
@@ -35,8 +36,15 @@ export type ProductVariantData = {
   images: Array<{ url: string; altText?: string }>;
   specs: Array<{ key: string; value: string }>;
   stock: number;
+  bulkPricing?: BulkPricingTier[];
   isDefault?: boolean;
   isActive?: boolean;
+};
+
+export type ProductShippingDimensions = {
+  lengthCm: number;
+  breadthCm: number;
+  heightCm: number;
 };
 
 // ── Products ──────────────────────────────────────────────────────────────────
@@ -60,6 +68,19 @@ export const products = pgTable("products", {
     .$type<Array<{ key: string; value: string }>>()
     .notNull()
     .default([]),
+  bulkPricing: jsonb("bulk_pricing")
+    .$type<BulkPricingTier[]>()
+    .notNull()
+    .default([]),
+  shippingWeightGrams: integer("shipping_weight_grams").notNull().default(0),
+  shippingDimensions: jsonb("shipping_dimensions")
+    .$type<ProductShippingDimensions>()
+    .notNull()
+    .default({
+      lengthCm: 0,
+      breadthCm: 0,
+      heightCm: 0,
+    }),
   // Inventory
   stock: integer("stock").notNull().default(0),
   lowStockThreshold: integer("low_stock_threshold").notNull().default(2),

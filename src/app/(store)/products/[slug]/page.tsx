@@ -15,6 +15,7 @@ import {
   Home,
 } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils/helpers";
+import { resolveBulkPricing, type BulkPricingTier } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/hooks/useCart";
@@ -38,6 +39,8 @@ type ProductVariant = {
   specs: ProductSpec[];
   stock: number;
   inStock: boolean;
+  bulkPricing?: BulkPricingTier[];
+  bulkPricingPreview?: BulkPricingTier | null;
   isDefault?: boolean;
   isActive?: boolean;
 };
@@ -51,6 +54,7 @@ type ProductData = {
   sku: string;
   basePrice: number;
   compareAtPrice: number | null;
+  bulkPricing?: BulkPricingTier[];
   images: ProductImageEntry[];
   specs: ProductSpec[];
   stock: number;
@@ -320,6 +324,15 @@ export default function ProductDetailPage({
   // ── Derived: current price, images, specs, stock ──────────────────────
 
   const currentPrice = useMemo(() => {
+    if (!product) return 0;
+    return resolveBulkPricing({
+      basePrice: selectedVariant?.price ?? product.basePrice,
+      quantity,
+      bulkPricing: selectedVariant?.bulkPricing ?? product.bulkPricing,
+    }).unitPrice;
+  }, [product, quantity, selectedVariant]);
+
+  const baseUnitPrice = useMemo(() => {
     if (selectedVariant) return selectedVariant.price;
     return product?.basePrice ?? 0;
   }, [selectedVariant, product]);
@@ -349,6 +362,21 @@ export default function ProductDetailPage({
   }, [selectedVariant, product]);
 
   const isInStock = currentStock > 0;
+
+  const currentBulkPricing = useMemo(
+    () => selectedVariant?.bulkPricing ?? product?.bulkPricing ?? [],
+    [product, selectedVariant]
+  );
+
+  const currentBulkMatch = useMemo(
+    () =>
+      resolveBulkPricing({
+        basePrice: baseUnitPrice,
+        quantity,
+        bulkPricing: currentBulkPricing,
+      }).matchedTier,
+    [baseUnitPrice, currentBulkPricing, quantity]
+  );
 
   const hasDiscount = useMemo(() => {
     return (
@@ -393,16 +421,18 @@ export default function ProductDetailPage({
       productName: product.name,
       productSlug: product.slug,
       variantName: cartVariantName,
+      basePrice: baseUnitPrice,
       price: currentPrice,
       compareAtPrice: currentCompareAtPrice,
       image: cartImage,
       quantity,
+      bulkPricing: currentBulkPricing,
     });
 
     toast.success("Added to cart!", {
       description: `${product.name}${cartVariantName !== "Default" ? ` - ${cartVariantName}` : ""} x ${quantity}`,
     });
-  }, [product, selectedVariant, currentPrice, currentCompareAtPrice, quantity, addItem]);
+  }, [product, selectedVariant, baseUnitPrice, currentPrice, currentCompareAtPrice, quantity, addItem, currentBulkPricing]);
 
   // ── Loading / 404 ─────────────────────────────────────────────────────
 
@@ -547,6 +577,65 @@ export default function ProductDetailPage({
               )}
             </div>
 
+            {currentBulkPricing.length > 0 && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-sm font-semibold text-gray-900">
+                      Bulk Pricing Available
+                    </h2>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Price updates automatically when you increase quantity.
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-gray-500">Current unit price</p>
+                    <p className="text-lg font-bold text-gray-900">
+                      {formatPrice(currentPrice)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {currentBulkPricing
+                    .slice()
+                    .sort((a, b) => a.minQuantity - b.minQuantity)
+                    .map((tier) => {
+                      const isActive = currentBulkMatch?.minQuantity === tier.minQuantity;
+                      return (
+                        <div
+                          key={`${tier.minQuantity}-${tier.unitPrice}`}
+                          className={cn(
+                            "flex items-center justify-between rounded-lg border px-3 py-2 text-sm",
+                            isActive
+                              ? "border-amber-500 bg-white"
+                              : "border-amber-200/70 bg-white/70"
+                          )}
+                        >
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              Buy {tier.minQuantity}+ pcs
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {tier.label || "Special per-piece price"}
+                              {tier.freeShipping ? " + free shipping" : ""}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-gray-900">
+                              {formatPrice(tier.unitPrice)}
+                            </p>
+                            <p className="text-[11px] text-emerald-600">
+                              Save {formatPrice(Math.max(0, baseUnitPrice - tier.unitPrice))}/pc
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+
             {/* Variant Selector */}
             {hasVariantSelection && (
               <div className="border-t border-gray-200 pt-6">
@@ -611,6 +700,17 @@ export default function ProductDetailPage({
                     <Plus className="h-4 w-4" />
                   </button>
                 </div>
+                <p className="mt-2 text-sm text-gray-600">
+                  Unit price: <span className="font-semibold text-gray-900">{formatPrice(currentPrice)}</span>
+                  <span className="mx-2 text-gray-300">|</span>
+                  Line total: <span className="font-semibold text-gray-900">{formatPrice(currentPrice * quantity)}</span>
+                  {currentBulkMatch?.freeShipping && (
+                    <>
+                      <span className="mx-2 text-gray-300">|</span>
+                      <span className="font-medium text-emerald-600">Free shipping unlocked</span>
+                    </>
+                  )}
+                </p>
               </div>
 
               {/* Add to Cart */}

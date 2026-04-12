@@ -78,6 +78,7 @@ type OrderDetail = {
   paidAt: string | null;
   subtotalAmount: number;
   discountAmount: number;
+  shippingAmount: number;
   totalAmount: number;
   couponCode: string | null;
   createdAt: string;
@@ -362,6 +363,12 @@ export default function OrderDetailPage({
                 )}
               </span>
               <span>-{formatPrice(order.discountAmount)}</span>
+            </div>
+          )}
+          {order.shippingAmount > 0 && (
+            <div className="flex justify-between text-sm text-gray-500">
+              <span>Shipping</span>
+              <span>{formatPrice(order.shippingAmount)}</span>
             </div>
           )}
           <div className="flex justify-between text-base font-bold text-gray-900 pt-2 border-t border-gray-200">

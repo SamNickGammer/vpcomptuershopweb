@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { ProductImage } from "@/components/ui/product-image";
 import { cn, formatPrice } from "@/lib/utils/helpers";
+import type { BulkPricingTier } from "@/lib/pricing";
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import {
@@ -84,6 +85,8 @@ type FeaturedProduct = {
   inStock: boolean;
   label: string | null;
   isFeatured: boolean;
+  bulkPricing?: BulkPricingTier[] | null;
+  bulkPricingPreview?: BulkPricingTier | null;
 };
 
 // ── Condition Badge (light theme) ────────────────────────────────────────────
@@ -333,10 +336,12 @@ function ProductCard({ product }: { product: FeaturedProduct }) {
       productName: product.name,
       productSlug: product.slug,
       variantName: product.label || "Default",
+      basePrice: product.price,
       price: product.price,
       compareAtPrice: product.compareAtPrice,
       image: image?.url ?? null,
       quantity: 1,
+      bulkPricing: product.bulkPricing || [],
     });
   }
 
@@ -429,6 +434,11 @@ function ProductCard({ product }: { product: FeaturedProduct }) {
                   {inStock ? "In Stock" : "Out of Stock"}
                 </span>
               </div>
+              {product.bulkPricingPreview && (
+                <div className="mt-1 text-[10px] font-medium text-amber-700">
+                  Bulk from {product.bulkPricingPreview.minQuantity}+ pcs
+                </div>
+              )}
             </div>
             {inStock && (
               <button

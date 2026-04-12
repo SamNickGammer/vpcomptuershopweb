@@ -9,6 +9,8 @@ import {
   type ReactNode,
 } from "react";
 import React from "react";
+import type { BulkPricingTier } from "@/lib/pricing";
+import { resolveBulkPricing } from "@/lib/pricing";
 
 export type CartItem = {
   variantId: string;
@@ -16,10 +18,12 @@ export type CartItem = {
   productName: string;
   productSlug: string;
   variantName: string;
+  basePrice: number; // paise
   price: number; // paise
   compareAtPrice: number | null;
   image: string | null;
   quantity: number;
+  bulkPricing: BulkPricingTier[];
 };
 
 type CartContextType = {
@@ -42,7 +46,13 @@ function getStoredCart(): CartItem[] {
     const raw = localStorage.getItem(CART_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed;
+    if (Array.isArray(parsed)) {
+      return parsed.map((item) => ({
+        ...item,
+        basePrice: item.basePrice ?? item.price ?? 0,
+        bulkPricing: Array.isArray(item.bulkPricing) ? item.bulkPricing : [],
+      }));
+    }
     return [];
   } catch {
     return [];
@@ -55,32 +65,47 @@ function persistCart(items: CartItem[]) {
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([]);
-  const [hydrated, setHydrated] = useState(false);
+  const [items, setItems] = useState<CartItem[]>(() => getStoredCart());
 
   useEffect(() => {
-    setItems(getStoredCart());
-    setHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (hydrated) {
-      persistCart(items);
-    }
-  }, [items, hydrated]);
+    persistCart(items);
+  }, [items]);
 
   const addItem = useCallback(
     (item: Omit<CartItem, "quantity"> & { quantity?: number }) => {
       setItems((prev) => {
         const existing = prev.find((i) => i.variantId === item.variantId);
         if (existing) {
+          const nextQuantity = existing.quantity + (item.quantity ?? 1);
+          const nextPrice = resolveBulkPricing({
+            basePrice: existing.basePrice,
+            quantity: nextQuantity,
+            bulkPricing: existing.bulkPricing,
+          }).unitPrice;
           return prev.map((i) =>
             i.variantId === item.variantId
-              ? { ...i, quantity: i.quantity + (item.quantity ?? 1) }
+              ? { ...i, quantity: nextQuantity, price: nextPrice }
               : i
           );
         }
-        return [...prev, { ...item, quantity: item.quantity ?? 1 }];
+        const quantity = item.quantity ?? 1;
+        const bulkPricing = item.bulkPricing || [];
+        const basePrice = item.basePrice ?? item.price;
+        const price = resolveBulkPricing({
+          basePrice,
+          quantity,
+          bulkPricing,
+        }).unitPrice;
+        return [
+          ...prev,
+          {
+            ...item,
+            basePrice,
+            bulkPricing,
+            quantity,
+            price,
+          },
+        ];
       });
     },
     []
@@ -98,7 +123,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
       setItems((prev) =>
         prev.map((i) =>
-          i.variantId === variantId ? { ...i, quantity } : i
+          i.variantId === variantId
+            ? {
+                ...i,
+                quantity,
+                price: resolveBulkPricing({
+                  basePrice: i.basePrice,
+                  quantity,
+                  bulkPricing: i.bulkPricing,
+                }).unitPrice,
+              }
+            : i
         )
       );
     },

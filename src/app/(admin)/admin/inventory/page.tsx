@@ -103,6 +103,10 @@ function getStockColor(stock: number, threshold: number): string {
   return "text-emerald-400";
 }
 
+function getVariants(product: InventoryProduct | null | undefined): ProductVariant[] {
+  return product?.variants ?? [];
+}
+
 /* ---------- Skeleton ---------- */
 
 function TableSkeleton() {
@@ -161,7 +165,16 @@ export default function InventoryPage() {
       const res = await fetch(`/api/admin/inventory?${params.toString()}`);
       const json = await res.json();
       if (json.success) {
-        setProducts(json.data);
+        setProducts(
+          (json.data ?? []).map((product: Partial<InventoryProduct>) => ({
+            id: product.id ?? "",
+            name: product.name ?? "",
+            sku: product.sku ?? null,
+            stock: product.stock ?? 0,
+            lowStockThreshold: product.lowStockThreshold ?? 0,
+            variants: Array.isArray(product.variants) ? product.variants : [],
+          }))
+        );
       } else {
         toast.error(json.error || "Failed to fetch inventory");
       }
@@ -241,7 +254,7 @@ export default function InventoryPage() {
   const getDialogLabel = () => {
     if (!selectedProduct) return "";
     if (selectedVariantId) {
-      const variant = selectedProduct.variants.find(
+      const variant = getVariants(selectedProduct).find(
         (v) => v.variantId === selectedVariantId
       );
       return variant
@@ -254,7 +267,7 @@ export default function InventoryPage() {
   const getCurrentStock = () => {
     if (!selectedProduct) return 0;
     if (selectedVariantId) {
-      const variant = selectedProduct.variants.find(
+      const variant = getVariants(selectedProduct).find(
         (v) => v.variantId === selectedVariantId
       );
       return variant?.stock ?? 0;
@@ -265,8 +278,9 @@ export default function InventoryPage() {
   // Computed stats
   const allStockItems: Array<{ stock: number; threshold: number }> = [];
   for (const p of products) {
-    if (p.variants.length > 0) {
-      for (const v of p.variants) {
+    const variants = getVariants(p);
+    if (variants.length > 0) {
+      for (const v of variants) {
         allStockItems.push({
           stock: v.stock,
           threshold: p.lowStockThreshold,
@@ -422,10 +436,11 @@ export default function InventoryPage() {
               </TableHeader>
               <TableBody>
                 {products.map((product) => {
-                  const hasVariants = product.variants.length > 0;
+                  const variants = getVariants(product);
+                  const hasVariants = variants.length > 0;
                   const isExpanded = expandedProducts.has(product.id);
                   const totalStock = hasVariants
-                    ? product.variants.reduce((sum, v) => sum + v.stock, 0)
+                    ? variants.reduce((sum, v) => sum + v.stock, 0)
                     : product.stock;
                   const status = getStockStatus(
                     totalStock,
@@ -459,8 +474,8 @@ export default function InventoryPage() {
                             </p>
                             {hasVariants && (
                               <p className="text-xs text-muted-foreground mt-0.5">
-                                {product.variants.length} variant
-                                {product.variants.length !== 1 ? "s" : ""}
+                                {variants.length} variant
+                                {variants.length !== 1 ? "s" : ""}
                               </p>
                             )}
                           </div>
@@ -514,7 +529,7 @@ export default function InventoryPage() {
                       {/* Variant rows (expanded) */}
                       {hasVariants &&
                         isExpanded &&
-                        product.variants.map((variant) => {
+                        variants.map((variant) => {
                           const variantStatus = getStockStatus(
                             variant.stock,
                             product.lowStockThreshold

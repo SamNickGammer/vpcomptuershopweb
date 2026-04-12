@@ -101,6 +101,7 @@ export async function GET(
       paidAt: order.paidAt,
       subtotalAmount: order.subtotalAmount,
       discountAmount: order.discountAmount,
+      shippingAmount: order.shippingAmount,
       totalAmount: order.totalAmount,
       couponCode: order.couponCode,
       createdAt: order.createdAt,

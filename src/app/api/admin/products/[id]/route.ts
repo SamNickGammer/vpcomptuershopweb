@@ -5,6 +5,14 @@ import { db } from "@/lib/db";
 import { products } from "@/lib/db/schema";
 import { getAdminFromCookie } from "@/lib/auth/admin";
 import { slugify } from "@/lib/utils/helpers";
+import { normalizeBulkPricingTiers } from "@/lib/pricing";
+
+const bulkPricingTierSchema = z.object({
+  minQuantity: z.number().int().min(2),
+  unitPrice: z.number().int().min(0),
+  freeShipping: z.boolean().optional().default(false),
+  label: z.string().max(120).optional().default(""),
+});
 
 const variantSchema = z.object({
   variantId: z.string().min(1),
@@ -23,6 +31,7 @@ const variantSchema = z.object({
     .array(z.object({ key: z.string().min(1), value: z.string().min(1) }))
     .optional()
     .default([]),
+  bulkPricing: z.array(bulkPricingTierSchema).optional().default([]),
   stock: z.number().int().min(0).default(0),
   isDefault: z.boolean().optional().default(false),
   isActive: z.boolean().optional().default(true),
@@ -41,6 +50,15 @@ const updateProductSchema = z.object({
     .optional(),
   specs: z
     .array(z.object({ key: z.string().min(1), value: z.string().min(1) }))
+    .optional(),
+  bulkPricing: z.array(bulkPricingTierSchema).optional(),
+  shippingWeightGrams: z.number().int().min(0).optional(),
+  shippingDimensions: z
+    .object({
+      lengthCm: z.number().min(0),
+      breadthCm: z.number().min(0),
+      heightCm: z.number().min(0),
+    })
     .optional(),
   stock: z.number().int().min(0).optional(),
   lowStockThreshold: z.number().int().min(0).optional(),
@@ -140,6 +158,9 @@ export async function PUT(
       compareAtPrice,
       images,
       specs,
+      bulkPricing,
+      shippingWeightGrams,
+      shippingDimensions,
       stock,
       lowStockThreshold,
       variants,
@@ -175,6 +196,15 @@ export async function PUT(
     if (compareAtPrice !== undefined) updateData.compareAtPrice = compareAtPrice;
     if (images !== undefined) updateData.images = images;
     if (specs !== undefined) updateData.specs = specs;
+    if (bulkPricing !== undefined) {
+      updateData.bulkPricing = normalizeBulkPricingTiers(bulkPricing);
+    }
+    if (shippingWeightGrams !== undefined) {
+      updateData.shippingWeightGrams = shippingWeightGrams;
+    }
+    if (shippingDimensions !== undefined) {
+      updateData.shippingDimensions = shippingDimensions;
+    }
     if (stock !== undefined) updateData.stock = stock;
     if (lowStockThreshold !== undefined) updateData.lowStockThreshold = lowStockThreshold;
     if (variants !== undefined) {
@@ -182,6 +212,7 @@ export async function PUT(
       updateData.variants = variants.map((v) => ({
         ...v,
         displayName: v.displayName || `${productName} ${v.name}`.trim(),
+        bulkPricing: normalizeBulkPricingTiers(v.bulkPricing),
       }));
     }
     if (isFeatured !== undefined) updateData.isFeatured = isFeatured;
