@@ -104,6 +104,19 @@ interface ShipmentData {
   createdAt: string;
 }
 
+interface ShippingQuoteData {
+  packageWeightGrams: number;
+  chargeableWeightGrams: number;
+  packageDimensions: {
+    lengthCm: number;
+    breadthCm: number;
+    heightCm: number;
+  };
+  shippingAmount: number;
+  courierName: string | null;
+  estimatedDays: number | null;
+}
+
 interface OrderDetail {
   id: string;
   orderNumber: string;
@@ -119,6 +132,8 @@ interface OrderDetail {
   paymentReference: string | null;
   subtotalAmount: number;
   discountAmount: number;
+  shippingAmount: number;
+  shippingQuote: ShippingQuoteData | null;
   totalAmount: number;
   couponCode: string | null;
   notes: string | null;
@@ -331,6 +346,15 @@ export default function OrderDetailPage({
       setPaymentMethod(order.paymentMethod || "cod");
     }
   }, [order, paymentDialogOpen]);
+
+  useEffect(() => {
+    if (!order?.shippingQuote) return;
+
+    setShiprocketWeight((order.shippingQuote.packageWeightGrams / 1000).toFixed(3));
+    setShiprocketLength(String(order.shippingQuote.packageDimensions.lengthCm));
+    setShiprocketBreadth(String(order.shippingQuote.packageDimensions.breadthCm));
+    setShiprocketHeight(String(order.shippingQuote.packageDimensions.heightCm));
+  }, [order]);
 
   const handleStatusUpdate = async () => {
     if (!newStatus) {
@@ -546,7 +570,7 @@ export default function OrderDetailPage({
     setRatesChecked(false);
     try {
       const res = await fetch(
-        `/api/admin/shipping/rates?orderId=${order.id}&weight=${parseFloat(shiprocketWeight) || 0.5}`
+        `/api/admin/shipping/rates?orderId=${order.id}&weight=${parseFloat(shiprocketWeight) || 0.5}&length=${parseFloat(shiprocketLength) || 20}&breadth=${parseFloat(shiprocketBreadth) || 15}&height=${parseFloat(shiprocketHeight) || 10}`
       );
       const json = await res.json();
       if (json.success && json.data.available) {
@@ -870,6 +894,17 @@ export default function OrderDetailPage({
                       </TableCell>
                       <TableCell className="text-right font-mono text-sm text-emerald-400">
                         -{formatPrice(order.discountAmount)}
+                      </TableCell>
+                    </TableRow>
+                  )}
+
+                  {order.shippingAmount > 0 && (
+                    <TableRow className="border-border">
+                      <TableCell colSpan={4} className="text-right text-sm text-muted-foreground">
+                        Shipping
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm text-foreground">
+                        {formatPrice(order.shippingAmount)}
                       </TableCell>
                     </TableRow>
                   )}
@@ -1401,6 +1436,43 @@ export default function OrderDetailPage({
                   <span className="text-sm text-muted-foreground">Discount Amount</span>
                   <span className="font-mono font-semibold text-emerald-400">
                     -{formatPrice(order.discountAmount)}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {order.shippingQuote && (
+            <Card className="bg-card rounded-xl border border-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base text-foreground">
+                  <Truck className="h-4 w-4 text-primary" />
+                  Checkout Shipping Quote
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Quoted Shipping</span>
+                  <span className="font-mono font-semibold text-foreground">
+                    {formatPrice(order.shippingAmount)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Packed Weight</span>
+                  <span className="font-mono text-foreground">
+                    {(order.shippingQuote.packageWeightGrams / 1000).toFixed(2)} kg
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Chargeable Weight</span>
+                  <span className="font-mono text-foreground">
+                    {(order.shippingQuote.chargeableWeightGrams / 1000).toFixed(2)} kg
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Package Size</span>
+                  <span className="font-mono text-foreground">
+                    {order.shippingQuote.packageDimensions.lengthCm} x {order.shippingQuote.packageDimensions.breadthCm} x {order.shippingQuote.packageDimensions.heightCm} cm
                   </span>
                 </div>
               </CardContent>

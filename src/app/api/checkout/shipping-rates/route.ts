@@ -1,90 +1,65 @@
 import { NextRequest, NextResponse } from "next/server";
-import { shiprocket } from "@/lib/shiprocket";
+import { z } from "zod";
+import { quoteShippingForItems } from "@/lib/shipping";
 
-// Public API — estimate shipping cost at checkout
-// Uses Shiprocket serviceability API to get rates for customer's pincode
-export async function POST(req: NextRequest) {
+const shippingRateSchema = z.object({
+  deliveryPincode: z.string().regex(/^\d{6}$/),
+  paymentMethod: z.enum(["cod", "online", "upi"]).default("cod"),
+  items: z
+    .array(
+      z.object({
+        productId: z.string().min(1),
+        variantId: z.string().optional().nullable(),
+        quantity: z.number().int().positive(),
+      })
+    )
+    .min(1),
+});
+
+export async function POST(request: NextRequest) {
   try {
-    const body = await req.json();
-    const { deliveryPincode, weight = 0.5, cod = true } = body;
+    const body = await request.json();
+    const parsed = shippingRateSchema.safeParse(body);
 
-    if (!deliveryPincode || deliveryPincode.length !== 6) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: "Valid 6-digit delivery pincode is required" },
+        { success: false, error: "Valid items, payment method, and pincode are required." },
         { status: 400 }
       );
     }
 
-    // Your pickup pincode (from Shiprocket pickup location)
-    const pickupPincode = "824120"; // Aurangabad, Bihar
-
-    const data = await shiprocket.checkServiceability({
-      pickupPincode,
+    const { deliveryPincode, paymentMethod, items } = parsed.data;
+    const { quote, couriers } = await quoteShippingForItems({
+      items,
       deliveryPincode,
-      weight,
-      cod,
+      isCod: paymentMethod === "cod",
     });
-
-    if (!data?.data?.available_courier_companies || data.data.available_courier_companies.length === 0) {
-      return NextResponse.json({
-        success: true,
-        data: {
-          available: false,
-          message: "Delivery not available to this pincode",
-          couriers: [],
-        },
-      });
-    }
-
-    const couriers = data.data.available_courier_companies.map(
-      (c: {
-        courier_company_id: number;
-        courier_name: string;
-        rate: number;
-        etd: string;
-        estimated_delivery_days: number;
-        cod_charges: number;
-        freight_charge: number;
-      }) => ({
-        courierId: c.courier_company_id,
-        courierName: c.courier_name,
-        rate: Math.ceil(c.rate), // total rate in rupees
-        etd: c.etd,
-        estimatedDays: c.estimated_delivery_days,
-        codCharges: c.cod_charges,
-        freightCharge: c.freight_charge,
-      })
-    );
-
-    // Sort by rate (cheapest first)
-    couriers.sort(
-      (a: { rate: number }, b: { rate: number }) => a.rate - b.rate
-    );
-
-    // Cheapest rate for display to customer
-    const cheapestRate = couriers[0]?.rate || 0;
 
     return NextResponse.json({
       success: true,
       data: {
-        available: true,
-        cheapestRate,
-        estimatedDays: couriers[0]?.estimatedDays || 5,
+        available: quote.available,
+        shippingAmount: quote.shippingAmount,
+        estimatedDays: quote.estimatedDays,
+        courierName: quote.courierName,
+        courierId: quote.courierId,
+        chargeableWeightGrams: quote.chargeableWeightGrams,
+        packageWeightGrams: quote.packageWeightGrams,
+        packageDimensions: quote.packageDimensions,
         couriers,
       },
     });
   } catch (error) {
-    console.error("Shipping rates error:", error);
-    // Don't block checkout if shipping estimation fails
-    return NextResponse.json({
-      success: true,
-      data: {
-        available: true,
-        cheapestRate: 0, // free if can't estimate
-        estimatedDays: 5,
-        couriers: [],
-        error: "Could not estimate shipping. Charges may apply.",
+    console.error("Checkout shipping quote error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to calculate shipping.",
       },
-    });
+      { status: 500 }
+    );
   }
 }

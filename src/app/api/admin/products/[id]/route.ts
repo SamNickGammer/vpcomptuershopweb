@@ -42,6 +42,14 @@ const updateProductSchema = z.object({
   specs: z
     .array(z.object({ key: z.string().min(1), value: z.string().min(1) }))
     .optional(),
+  shippingWeightGrams: z.number().int().min(0).optional(),
+  shippingDimensions: z
+    .object({
+      lengthCm: z.number().min(0),
+      breadthCm: z.number().min(0),
+      heightCm: z.number().min(0),
+    })
+    .optional(),
   stock: z.number().int().min(0).optional(),
   lowStockThreshold: z.number().int().min(0).optional(),
   variants: z.array(variantSchema).optional(),
@@ -140,6 +148,8 @@ export async function PUT(
       compareAtPrice,
       images,
       specs,
+      shippingWeightGrams,
+      shippingDimensions,
       stock,
       lowStockThreshold,
       variants,
@@ -175,6 +185,12 @@ export async function PUT(
     if (compareAtPrice !== undefined) updateData.compareAtPrice = compareAtPrice;
     if (images !== undefined) updateData.images = images;
     if (specs !== undefined) updateData.specs = specs;
+    if (shippingWeightGrams !== undefined) {
+      updateData.shippingWeightGrams = shippingWeightGrams;
+    }
+    if (shippingDimensions !== undefined) {
+      updateData.shippingDimensions = shippingDimensions;
+    }
     if (stock !== undefined) updateData.stock = stock;
     if (lowStockThreshold !== undefined) updateData.lowStockThreshold = lowStockThreshold;
     if (variants !== undefined) {

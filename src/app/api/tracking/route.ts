@@ -57,6 +57,7 @@ export async function GET(request: NextRequest) {
         totalAmount: order.totalAmount,
         subtotalAmount: order.subtotalAmount,
         discountAmount: order.discountAmount,
+        shippingAmount: order.shippingAmount,
         couponCode: order.couponCode,
         createdAt: order.createdAt,
         items: items.map((item) => ({

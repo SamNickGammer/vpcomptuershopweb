@@ -49,6 +49,7 @@ type OrderData = {
   totalAmount: number;
   subtotalAmount: number;
   discountAmount: number;
+  shippingAmount: number;
   couponCode: string | null;
   createdAt: string;
   items: OrderItem[];
@@ -359,12 +360,12 @@ export default function TrackOrderPage() {
                   </div>
                   {/* Totals */}
                   <div className="mt-4 pt-4 border-t border-gray-200 space-y-1.5">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Subtotal</span>
+                      <span className="font-mono text-gray-900">{formatPrice(order.subtotalAmount)}</span>
+                    </div>
                     {order.discountAmount > 0 && (
                       <>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-500">Subtotal</span>
-                          <span className="font-mono text-gray-900">{formatPrice(order.subtotalAmount)}</span>
-                        </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-green-600 flex items-center gap-1">
                             Discount
@@ -377,6 +378,12 @@ export default function TrackOrderPage() {
                           <span className="text-green-600 font-mono">-{formatPrice(order.discountAmount)}</span>
                         </div>
                       </>
+                    )}
+                    {order.shippingAmount > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Shipping</span>
+                        <span className="font-mono text-gray-900">{formatPrice(order.shippingAmount)}</span>
+                      </div>
                     )}
                     <div className="flex justify-between text-base font-bold pt-1">
                       <span className="text-gray-900">Total</span>

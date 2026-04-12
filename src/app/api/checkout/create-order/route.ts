@@ -10,6 +10,7 @@ import { eq, sql, inArray } from "drizzle-orm";
 import { getCustomerFromCookie } from "@/lib/auth/customer";
 import { generateInternalTrackingCode } from "@/lib/utils/tracking";
 import { razorpay } from "@/lib/razorpay";
+import { quoteShippingForItems } from "@/lib/shipping";
 
 type OrderItemInput = {
   productId: string;
@@ -220,7 +221,28 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const totalAmount = subtotalAmount - discountAmount;
+    const shippingResult = await quoteShippingForItems({
+      items: body.items.map((item) => ({
+        productId: item.productId,
+        variantId: item.variantId,
+        quantity: item.quantity,
+      })),
+      deliveryPincode: body.shippingAddress.pincode,
+      isCod: body.paymentMethod === "cod",
+    });
+
+    if (!shippingResult.quote.available) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Shipping is not available for this pincode right now.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const shippingAmount = shippingResult.quote.shippingAmount;
+    const totalAmount = subtotalAmount - discountAmount + shippingAmount;
     const orderNumber = generateOrderNumber();
     const trackingCode = generateInternalTrackingCode();
 
@@ -263,6 +285,8 @@ export async function POST(req: NextRequest) {
           paymentMethod: "cod",
           subtotalAmount,
           discountAmount,
+          shippingAmount,
+          shippingQuote: shippingResult.quote,
           totalAmount,
           couponCode: couponCodeUsed || null,
         })
@@ -319,6 +343,8 @@ export async function POST(req: NextRequest) {
           orderNumber,
           orderId,
           paymentMethod: "cod" as const,
+          shippingAmount,
+          totalAmount,
         },
       });
     }
@@ -351,6 +377,8 @@ export async function POST(req: NextRequest) {
         razorpayOrderId: razorpayOrder.id,
         subtotalAmount,
         discountAmount,
+        shippingAmount,
+        shippingQuote: shippingResult.quote,
         totalAmount,
         couponCode: couponCodeUsed || null,
       })
@@ -384,6 +412,7 @@ export async function POST(req: NextRequest) {
         paymentMethod: "online" as const,
         razorpayOrderId: razorpayOrder.id,
         razorpayKeyId: process.env.LIVE_KEY_ID,
+        shippingAmount,
         amount: totalAmount,
         currency: "INR",
         customerName: body.customerName,

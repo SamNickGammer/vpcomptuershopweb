@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { orders, orderItems, shipments, trackingEvents } from "@/lib/db/schema";
 import { getAdminFromCookie } from "@/lib/auth/admin";
 import { shiprocket } from "@/lib/shiprocket";
+import type { OrderShippingQuote } from "@/lib/db/schema";
 
 const shipOrderSchema = z.object({
   orderId: z.string().uuid(),
@@ -13,7 +14,10 @@ const shipOrderSchema = z.object({
   length: z.number().positive().optional().default(20),
   breadth: z.number().positive().optional().default(15),
   height: z.number().positive().optional().default(10),
-  pickupLocation: z.string().optional().default("Home"),
+  pickupLocation: z
+    .string()
+    .optional()
+    .default(process.env.SHIPROCKET_PICKUP_LOCATION || "Home"),
   courierId: z.number().optional(), // Shiprocket courier ID from rate check
   shippingCharge: z.number().optional().default(0), // shipping cost in paise
   trackingNumber: z.string().optional(),
@@ -97,6 +101,17 @@ export async function POST(request: NextRequest) {
         state: string;
         pincode: string;
       };
+      const savedQuote = order.shippingQuote as OrderShippingQuote | null;
+      const finalWeight =
+        weight || (savedQuote?.packageWeightGrams || 500) / 1000;
+      const finalLength = length || savedQuote?.packageDimensions.lengthCm || 20;
+      const finalBreadth =
+        breadth || savedQuote?.packageDimensions.breadthCm || 15;
+      const finalHeight = height || savedQuote?.packageDimensions.heightCm || 10;
+      const finalShippingAmount =
+        order.shippingAmount > 0
+          ? order.shippingAmount
+          : parsed.data.shippingCharge || savedQuote?.shippingAmount || 0;
 
       // Format order date as YYYY-MM-DD HH:MM
       const orderDate = new Date(order.createdAt)
@@ -130,10 +145,10 @@ export async function POST(request: NextRequest) {
           sellingPrice: item.unitPrice / 100, // Convert paise to rupees
         })),
         subtotal: order.totalAmount / 100, // Convert paise to rupees
-        weight,
-        length,
-        breadth,
-        height,
+        weight: finalWeight,
+        length: finalLength,
+        breadth: finalBreadth,
+        height: finalHeight,
         paymentMethod: shiprocketPaymentMethod,
       });
 
@@ -192,8 +207,9 @@ export async function POST(request: NextRequest) {
           .update(orders)
           .set({
             status: awb ? "shipped" : "ready_to_ship",
-            shippingAmount: parsed.data.shippingCharge || 0,
-            totalAmount: order.subtotalAmount - order.discountAmount + (parsed.data.shippingCharge || 0),
+            shippingAmount: finalShippingAmount,
+            totalAmount:
+              order.subtotalAmount - order.discountAmount + finalShippingAmount,
             updatedAt: new Date(),
           })
           .where(eq(orders.id, orderId));

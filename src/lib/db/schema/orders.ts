@@ -10,6 +10,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { products } from "./products";
+import type { ProductShippingDimensions } from "./products";
 
 export const orderStatusEnum = pgEnum("order_status", [
   "pending",
@@ -28,6 +29,24 @@ export const paymentStatusEnum = pgEnum("payment_status", [
   "failed",
   "refunded",
 ]);
+
+export type OrderShippingQuote = {
+  available: boolean;
+  provider: "shiprocket";
+  pickupPincode: string;
+  deliveryPincode: string;
+  paymentMode: "cod" | "prepaid";
+  packageWeightGrams: number;
+  chargeableWeightGrams: number;
+  packageDimensions: ProductShippingDimensions;
+  shippingAmount: number;
+  estimatedDays: number | null;
+  courierId: number | null;
+  courierName: string | null;
+  freightCharge: number;
+  codCharge: number;
+  fallbackApplied: boolean;
+};
 
 // ── Orders ────────────────────────────────────────────────────────────────────
 export const orders = pgTable("orders", {
@@ -51,6 +70,7 @@ export const orders = pgTable("orders", {
   subtotalAmount: integer("subtotal_amount").notNull().default(0),
   discountAmount: integer("discount_amount").notNull().default(0),
   shippingAmount: integer("shipping_amount").notNull().default(0),
+  shippingQuote: jsonb("shipping_quote").$type<OrderShippingQuote>(),
   totalAmount: integer("total_amount").notNull(),
   couponCode: varchar("coupon_code", { length: 50 }),
   notes: text("notes"),

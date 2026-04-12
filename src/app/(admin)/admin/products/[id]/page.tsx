@@ -152,6 +152,10 @@ export default function EditProductPage({
   const [condition, setCondition] = useState<string>("new");
   const [isFeatured, setIsFeatured] = useState(false);
   const [isActive, setIsActive] = useState(true);
+  const [shippingWeightGrams, setShippingWeightGrams] = useState("0");
+  const [shippingLengthCm, setShippingLengthCm] = useState("0");
+  const [shippingBreadthCm, setShippingBreadthCm] = useState("0");
+  const [shippingHeightCm, setShippingHeightCm] = useState("0");
 
   // Variants
   const [variants, setVariants] = useState<VariantEntry[]>([]);
@@ -222,6 +226,10 @@ export default function EditProductPage({
         setCondition(p.condition);
         setIsFeatured(p.isFeatured);
         setIsActive(p.isActive);
+        setShippingWeightGrams(String(p.shippingWeightGrams || 0));
+        setShippingLengthCm(String(p.shippingDimensions?.lengthCm || 0));
+        setShippingBreadthCm(String(p.shippingDimensions?.breadthCm || 0));
+        setShippingHeightCm(String(p.shippingDimensions?.heightCm || 0));
 
         // Variants
         const loadedVariants: VariantEntry[] = (p.variants || []).map(
@@ -607,6 +615,12 @@ export default function EditProductPage({
           key: s.key.trim(),
           value: s.value.trim(),
         })),
+        shippingWeightGrams: Math.max(0, Math.round(Number(shippingWeightGrams) || 0)),
+        shippingDimensions: {
+          lengthCm: Math.max(0, Math.round(Number(shippingLengthCm) || 0)),
+          breadthCm: Math.max(0, Math.round(Number(shippingBreadthCm) || 0)),
+          heightCm: Math.max(0, Math.round(Number(shippingHeightCm) || 0)),
+        },
         stock: parseInt(defaultVariant.stock) || 0,
         lowStockThreshold: 2,
         variants: variants.map((v) => ({
@@ -819,6 +833,71 @@ export default function EditProductPage({
                 <Label htmlFor="active" className="text-foreground cursor-pointer text-sm">
                   Active
                 </Label>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card rounded-xl border-border">
+          <CardHeader className="border-b border-border">
+            <CardTitle className="text-foreground">Shipping Setup</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5 pt-6">
+            <p className="text-sm text-muted-foreground">
+              These values are used during checkout to estimate Shiprocket charges before payment.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="shippingWeightGrams" className="text-foreground">
+                Packed Weight (grams)
+              </Label>
+              <Input
+                id="shippingWeightGrams"
+                type="number"
+                min="0"
+                value={shippingWeightGrams}
+                onChange={(e) => setShippingWeightGrams(e.target.value)}
+                className="bg-secondary border-border rounded-lg"
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="shippingLengthCm" className="text-foreground">
+                  Length (cm)
+                </Label>
+                <Input
+                  id="shippingLengthCm"
+                  type="number"
+                  min="0"
+                  value={shippingLengthCm}
+                  onChange={(e) => setShippingLengthCm(e.target.value)}
+                  className="bg-secondary border-border rounded-lg"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="shippingBreadthCm" className="text-foreground">
+                  Breadth (cm)
+                </Label>
+                <Input
+                  id="shippingBreadthCm"
+                  type="number"
+                  min="0"
+                  value={shippingBreadthCm}
+                  onChange={(e) => setShippingBreadthCm(e.target.value)}
+                  className="bg-secondary border-border rounded-lg"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="shippingHeightCm" className="text-foreground">
+                  Height (cm)
+                </Label>
+                <Input
+                  id="shippingHeightCm"
+                  type="number"
+                  min="0"
+                  value={shippingHeightCm}
+                  onChange={(e) => setShippingHeightCm(e.target.value)}
+                  className="bg-secondary border-border rounded-lg"
+                />
               </div>
             </div>
           </CardContent>

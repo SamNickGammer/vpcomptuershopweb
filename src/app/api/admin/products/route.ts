@@ -44,6 +44,18 @@ const createProductSchema = z.object({
     .array(z.object({ key: z.string().min(1), value: z.string().min(1) }))
     .optional()
     .default([]),
+  shippingWeightGrams: z.number().int().min(0).default(0),
+  shippingDimensions: z
+    .object({
+      lengthCm: z.number().min(0),
+      breadthCm: z.number().min(0),
+      heightCm: z.number().min(0),
+    })
+    .default({
+      lengthCm: 0,
+      breadthCm: 0,
+      heightCm: 0,
+    }),
   stock: z.number().int().min(0).default(0),
   lowStockThreshold: z.number().int().min(0).default(2),
   variants: z.array(variantSchema).optional().default([]),
@@ -204,6 +216,8 @@ export async function POST(request: NextRequest) {
       compareAtPrice,
       images,
       specs,
+      shippingWeightGrams,
+      shippingDimensions,
       stock,
       lowStockThreshold,
       variants,
@@ -242,6 +256,8 @@ export async function POST(request: NextRequest) {
         compareAtPrice: compareAtPrice ?? null,
         images,
         specs,
+        shippingWeightGrams,
+        shippingDimensions,
         stock,
         lowStockThreshold,
         variants: processedVariants,
