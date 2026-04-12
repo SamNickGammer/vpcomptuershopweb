@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { inventoryHistory, products } from "@/lib/db/schema";
 import { getAdminFromCookie } from "@/lib/auth/admin";
+import type { ProductVariantData } from "@/lib/db/schema/products";
 
 const updateStockSchema = z.object({
   productId: z.string().min(1),
@@ -26,31 +27,59 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const lowStock = searchParams.get("lowStock") === "true";
 
-    const whereClause = lowStock
-      ? sql`${products.stock} <= ${products.lowStockThreshold}`
-      : undefined;
+    const rows = await db.select().from(products);
 
-    const rows = await db
-      .select()
-      .from(products)
-      .where(whereClause);
+    const data = rows
+      .map((p) => {
+        const variants = ((p.variants ?? []) as ProductVariantData[]).map(
+          (variant) => ({
+            variantId: variant.variantId,
+            name: variant.name,
+            sku: variant.sku,
+            price: variant.price,
+            stock: variant.stock,
+            isActive: variant.isActive ?? true,
+          })
+        );
 
-    const data = rows.map((p) => ({
-      id: p.id,
-      name: p.name,
-      sku: p.sku,
-      basePrice: p.basePrice,
-      stock: p.stock,
-      lowStockThreshold: p.lowStockThreshold,
-      isActive: p.isActive,
-      status:
-        p.stock <= 0
-          ? "out_of_stock"
-          : p.stock <= p.lowStockThreshold
-            ? "low_stock"
-            : "in_stock",
-      variantsCount: ((p.variants ?? []) as unknown[]).length,
-    }));
+        const effectiveStock =
+          variants.length > 0
+            ? variants.reduce((sum, variant) => sum + variant.stock, 0)
+            : p.stock;
+
+        return {
+          id: p.id,
+          name: p.name,
+          sku: p.sku,
+          basePrice: p.basePrice,
+          stock: p.stock,
+          lowStockThreshold: p.lowStockThreshold,
+          isActive: p.isActive,
+          status:
+            effectiveStock <= 0
+              ? "out_of_stock"
+              : effectiveStock <= p.lowStockThreshold
+                ? "low_stock"
+                : "in_stock",
+          variants,
+          variantsCount: variants.length,
+        };
+      })
+      .filter((product) => {
+        if (!lowStock) {
+          return true;
+        }
+
+        if (product.variants.length > 0) {
+          return product.variants.some(
+            (variant) =>
+              variant.stock > 0 &&
+              variant.stock <= product.lowStockThreshold
+          );
+        }
+
+        return product.stock > 0 && product.stock <= product.lowStockThreshold;
+      });
 
     return NextResponse.json({ success: true, data });
   } catch (error) {
@@ -101,13 +130,44 @@ export async function PUT(request: NextRequest) {
         return null;
       }
 
-      const newStock = existing.stock + changeQuantity;
+      const existingVariants = (existing.variants ?? []) as ProductVariantData[];
+      const hasVariants = existingVariants.length > 0;
+      const shouldUpdateVariant = Boolean(variantId) && hasVariants;
+
+      let nextVariants = existingVariants;
+      let newStock = existing.stock + changeQuantity;
+
+      if (shouldUpdateVariant) {
+        let foundVariant = false;
+
+        nextVariants = existingVariants.map((variant) => {
+          if (variant.variantId !== variantId) {
+            return variant;
+          }
+
+          foundVariant = true;
+          return {
+            ...variant,
+            stock: variant.stock + changeQuantity,
+          };
+        });
+
+        if (!foundVariant) {
+          return null;
+        }
+
+        newStock = nextVariants.reduce(
+          (sum, variant) => sum + Math.max(variant.stock, 0),
+          0
+        );
+      }
 
       // Update stock on product
       const [updated] = await tx
         .update(products)
         .set({
           stock: newStock,
+          variants: nextVariants,
           updatedAt: new Date(),
         })
         .where(eq(products.id, productId))
